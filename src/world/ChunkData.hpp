@@ -12,11 +12,9 @@ struct ChunkData {
     using Type = uint8_t;
 
     std::vector<Type> data;
-    
-    ChunkData() :
-        data(CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_WIDTH)
-    {
-    }
+
+    ChunkData() : data(CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_WIDTH)
+    { }
 
     Type get(glm::ivec3 position) {
         assert(position.x >= 0 && position.x < CHUNK_WIDTH);

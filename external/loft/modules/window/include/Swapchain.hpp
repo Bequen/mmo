@@ -1,13 +1,11 @@
 #pragma once
 
 #include "Gpu.hpp"
-#include "Window.hpp"
 #include "props.hpp"
 #include "resources/Image.hpp"
 
 #include <vector>
 #include <volk.h>
-#include <stdexcept>
 
 struct ImageResourceLayout;
 
@@ -30,11 +28,11 @@ private:
 	VkPresentModeKHR choose_present_mode();
 	VkExtent2D choose_extent(VkExtent2D actualExtent = {0, 0});
 
-	Result create_swapchain();
+	ResultCode create_swapchain();
 
-	Result get_images(unsigned *pOutCount, VkImage *pOut);
+	ResultCode get_images(unsigned *pOutCount, VkImage *pOut);
 
-	Result create_views();
+	ResultCode create_views();
 
 	std::vector<Image> m_images;
 	std::vector<ImageView> m_views;
@@ -72,6 +70,10 @@ public:
 
         m_gpu->enqueue_present(&presentInfo);
     }
+
+    void cleanup();
+
+    void resize(VkExtent2D size);
 
 	Swapchain(const Gpu* gpu, VkExtent2D extent, Surface* surface);
 };

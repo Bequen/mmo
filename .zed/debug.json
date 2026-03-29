@@ -1,0 +1,44 @@
+[
+  {
+    "adapter": "CodeLLDB",
+    "label": "Server",
+    "request": "launch",
+    // The program to debug. This field supports path resolution with ~ or . symbols.
+    "program": "./Debug/modules/server/tw_server",
+    // cwd: defaults to the current working directory of your project ($ZED_WORKTREE_ROOT)
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "console": "integratedTerminal"
+  },
+  {
+    "adapter": "CodeLLDB",
+    "label": "Client",
+    // The program to debug. This field supports path resolution with ~ or . symbols.
+    "program": "./Debug/modules/client/mmo_client 6970",
+    // cwd: defaults to the current working directory of your project ($ZED_WORKTREE_ROOT)
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "console": "integratedTerminal"
+  },
+  {
+    "adapter": "CodeLLDB",
+    "label": "QuicrOverloadTest",
+    "request": "launch",
+    // The program to debug. This field supports path resolution with ~ or . symbols.
+    "program": "./Debug/modules/network/tests/QuicrOverloadTest",
+    // cwd: defaults to the current working directory of your project ($ZED_WORKTREE_ROOT)
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "console": "integratedTerminal"
+  }, {
+      "adapter": "CodeLLDB",
+      "label": "QuicrTests2",
+      "request": "launch",
+      // The program to debug. This field supports path resolution with ~ or . symbols.
+      "program": "/home/martin/projects/mmo/Debug/modules/network/tests/tw_network_tests",
+      "args": ["[quicr3]"],
+      // cwd: defaults to the current working directory of your project ($ZED_WORKTREE_ROOT)
+      "cwd": "$ZED_WORKTREE_ROOT",
+      "build": {
+        "command": "cmake --build ./Debug -j16",
+        "directory": "$ZED_WORKTREE_ROOT"
+      }
+    }
+]

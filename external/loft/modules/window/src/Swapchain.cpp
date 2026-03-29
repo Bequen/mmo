@@ -1,6 +1,8 @@
 #include "Swapchain.hpp"
+#include "Instance.hpp"
 
 #include <assert.h>
+#include <print>
 
 VkSurfaceFormatKHR Swapchain::choose_format() {
 	uint32_t formatCount = 0;
@@ -69,14 +71,14 @@ VkExtent2D Swapchain::choose_extent(VkExtent2D actualExtent) {
 	return result;
 }
 
-Result Swapchain::get_images(uint32_t *pOutNumImages, VkImage *pOutImages) {
+ResultCode Swapchain::get_images(uint32_t *pOutNumImages, VkImage *pOutImages) {
 	/* Get images to render to, rendertargets */
 	EXPECT(vkGetSwapchainImagesKHR(m_gpu->dev(), m_swapchain, pOutNumImages, pOutImages) == VK_SUCCESS, 
             "Failed to get swapchain images");
 	return RESULT_OK;
 }
 
-Result Swapchain::create_views() {
+ResultCode Swapchain::create_views() {
 	m_pImageViews = (VkImageView*)malloc(sizeof(VkImageView) * m_numImages);
 	assert(m_pImageViews);
 
@@ -107,7 +109,7 @@ Result Swapchain::create_views() {
 	return RESULT_OK;
 }
 
-Result Swapchain::create_swapchain() {
+ResultCode Swapchain::create_swapchain() {
 	VkSurfaceCapabilitiesKHR capabilities = {};
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_gpu->gpu(), m_surface, &capabilities);
 
@@ -145,8 +147,40 @@ Result Swapchain::create_swapchain() {
 	return RESULT_OK;
 }
 
+void Swapchain::cleanup() {
+    for(int i = 0; i < m_numImages; i++) {
+        vkDestroyImageView(m_gpu->dev(), m_pImageViews[i], nullptr);
+    }
+
+    vkDestroySwapchainKHR(m_gpu->dev(), m_swapchain, nullptr);
+}
+
+void Swapchain::resize(VkExtent2D extent) {
+    cleanup();
+
+    m_extent = extent;
+
+    create_swapchain();
+
+	get_images(&m_numImages, NULL);
+	m_pImages = new VkImage[m_numImages];
+	get_images(&m_numImages, m_pImages);
+
+	create_views();
+
+	m_images.resize(m_numImages);
+	m_views.resize(m_numImages);
+	for(int i = 0; i < m_numImages; i++) {
+		m_images[i].img = m_pImages[i];
+        std::println("View: {:#06x}", (unsigned long)m_pImageViews[i]);
+		m_views[i].view = m_pImageViews[i];
+	}
+}
+
 Swapchain::Swapchain(const Gpu* gpu, VkExtent2D extent, Surface* surface) :
-m_gpu(gpu), m_surface(surface->surface()) {
+    m_gpu(gpu), 
+    m_surface(surface->surface()) 
+{
 	VkSurfaceCapabilitiesKHR capabilities = {};
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_gpu->gpu(), m_surface, &capabilities);
 

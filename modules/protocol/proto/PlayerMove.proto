@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package mmo;
+
+message PlayerInput {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+message PlayerMoveMessage {
+    int32 frame_idx = 1;
+
+    PlayerInput input = 2;
+}

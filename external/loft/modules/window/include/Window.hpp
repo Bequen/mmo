@@ -24,6 +24,11 @@ public:
     [[nodiscard("Getter should not be discarded")]]
     virtual VkExtent2D get_size() const = 0;
 
+    bool has_size(VkExtent2D size) const {
+        return get_size().width == size.width &&
+            get_size().height == size.height;
+    }
+
     [[nodiscard]] virtual bool is_open() const = 0;
 
     virtual int32_t poll_event(SDL_Event *pOutEvent) const = 0;

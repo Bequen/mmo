@@ -4,6 +4,9 @@
 
 namespace tw::drw {
 
+/**
+ * Stores location data about Mesh on the GPU.
+ */
 class Mesh {
     uint32_t m_vertex_offset;
     uint32_t m_num_vertices;

@@ -40,11 +40,11 @@ private:
 
     std::vector<int32_t> get_queues(std::optional<Surface*> surface);
 
-    Result create_logical_device(std::optional<Surface*> surface);
+    ResultCode create_logical_device(std::optional<Surface*> surface);
 
-	Result choose_gpu(VkPhysicalDevice *pOut);
+	ResultCode choose_gpu(VkPhysicalDevice *pOut);
 
-    Result create_descriptor_pool();
+    ResultCode create_descriptor_pool();
 
     std::unique_ptr<GpuAllocator> m_pAllocator;
 
@@ -76,7 +76,7 @@ public:
     // Forbid copy
     Gpu(const Gpu&) = delete;
 
-    static result<Gpu, Result> create(std::shared_ptr<const Instance> instance, VkSurfaceKHR surface);
+    static result<Gpu, ResultCode> create(std::shared_ptr<const Instance> instance, VkSurfaceKHR surface);
 
     inline std::vector<uint32_t> present_queue_ids() const {
         return {m_presentQueueIdx};

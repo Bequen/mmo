@@ -27,6 +27,10 @@ class ThirdPersonPlayerController {
 public:
     GET_REF(m_input, input);
 
+    void set_target(glm::vec3 target) {
+        m_target = target;
+    }
+
     ThirdPersonPlayerController(Camera* camera, glm::vec3 target);
 
     glm::vec3 get_axis();

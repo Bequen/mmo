@@ -10,6 +10,9 @@ namespace tw::io {
 
 using namespace std::filesystem;
 
+/**
+ * Manages access to a application specific directory for storing assets.
+ */
 class Files {
     path m_exe_path;
 

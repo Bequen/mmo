@@ -1,21 +1,19 @@
 #pragma once
 
-#include "MessageHandler.hpp"
 #include "draw/WorldRenderer.hpp"
 #include "io/InputState.hpp"
 #include "runtime/LockStep.hpp"
 #include "world/ClientWorldController.hpp"
 #include "world/JoltPhysicsWorld.hpp"
-#include "world/LocalWorldController.hpp"
 #include "world/World.hpp"
-#include "Messenger.hpp"
 
-#include "messages/WorldStateMessage.hpp"
 #include "messages/PlayerMoveMessage.hpp"
-#include <chrono>
 
 namespace tw {
 
+/**
+ * Handles runtime of the client application.
+ */
 class Runtime {
 private:
     io::Files m_files;
@@ -29,7 +27,7 @@ private:
     tw::drw::WorldRenderer m_world_renderer;
 
     tw::io::InputManager m_input_manager;
-    
+
     tw::ClientWorldController m_world_controller;
 
     tw::LockStep m_lockstep;
@@ -38,7 +36,6 @@ private:
 
     std::unordered_map<uint32_t, entt::entity> m_players;
 
-    bool world_state_packet_handler(uint32_t* p_frame_idx, WorldStateMessage* mesg);
     void player_move_packet_handler(PlayerInputMessage&& mesg);
 
     void send_player_positions();

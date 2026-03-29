@@ -1,5 +1,6 @@
 #include "shaders/PipelineBuilder.h"
 #include "shaders/Shader.hpp"
+#include <vulkan/vulkan_core.h>
 
 PipelineBuilder::PipelineBuilder(const Gpu* gpu, const VkViewport& viewport,
         VkPipelineLayout layout, VkRenderPass outputLayout,
@@ -106,6 +107,14 @@ Pipeline PipelineBuilder::build() {
             .blendConstants = { 0.0f, 0.0f, 0.0f, 0.0f}
     };
 
+    std::vector<VkDynamicState> dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamicState = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+        .dynamicStateCount = (uint32_t)dynamicStates.size(),
+        .pDynamicStates = dynamicStates.data()
+    };
+
     VkGraphicsPipelineCreateInfo pipelineInfo = {
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .stageCount = (uint32_t)stages.size(),
@@ -117,7 +126,7 @@ Pipeline PipelineBuilder::build() {
             .pMultisampleState = &multisampling,
             .pDepthStencilState = &m_depthStencilInfo,
             .pColorBlendState = &colorBlending,
-            .pDynamicState = nullptr,
+            .pDynamicState = &dynamicState,
             .layout = m_layout,
             .renderPass = m_renderpass,
             .subpass = 0,

@@ -46,7 +46,7 @@ ImageResource Allocator::allocate_image_resources(
 			.layerCount = 1,
 	});
 
-	return ImageResource(image.img, view.view);
+	return ImageResource(image.img, view.view, image_info.extent);
 }
 
 BufferResource Allocator::allocate_buffer_resource(const BufferResourceDescription& description) {

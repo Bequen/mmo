@@ -33,4 +33,3 @@ SERIALIZER(PlayerUpdateMessage, buffer, mesg) {
 
     return true;
 }
-

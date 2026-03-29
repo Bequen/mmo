@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package mmo;
+
+message EntitySpawnMessage {
+    uint32 entity_id = 1;
+    bool is_player = 2;
+    string name = 3;
+}
+
+message EntityDespawnMessage {
+    uint32 entity_id = 1;
+}

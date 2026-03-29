@@ -1,10 +1,12 @@
 #include <SDL2/SDL_error.h>
+#include <SDL_video.h>
 #include <volk.h>
 #include <stdexcept>
 #include "SDLWindow.h"
 #include "LoftException.hpp"
 #include <SDL2/SDL_vulkan.h>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace lft::win {
 
@@ -16,7 +18,10 @@ void SDLWindow::resize() {
 }
 
 VkExtent2D SDLWindow::get_size() const {
-    return m_extent;
+    VkExtent2D extent = {};
+    SDL_GetWindowSize(m_pWindow, (int*)&extent.width, (int*)&extent.height);
+
+    return extent;
 }
 
 SDLWindow::SDLWindow(std::string name, VkRect2D rect) :
@@ -31,7 +36,8 @@ m_extent{rect.extent}
                                  SDL_WINDOWPOS_CENTERED,
                                  rect.extent.width,
                                  rect.extent.height,
-                                 SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI);
+                                 SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI |
+                                 SDL_WINDOW_RESIZABLE);
 
     if(m_pWindow == nullptr) {
         throw GpuException(std::format("Failed to create window:\n{}", SDL_GetError()));

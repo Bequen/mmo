@@ -5,6 +5,7 @@ add_subdirectory(shaders)
 
 file(GLOB FILES
     src/*.cpp
+    src/network/*.cpp
     src/world/*.cpp
     src/io/*.cpp
     src/draw/*.cpp
@@ -16,20 +17,25 @@ file(GLOB FILES
 add_executable(${PROJECT_NAME} ${FILES})
 add_dependencies(tw_shaders imgui::plot imgui::plot)
 
-target_link_libraries(${PROJECT_NAME} 
-        PUBLIC 
+target_link_libraries(${PROJECT_NAME}
+        PUBLIC
         towards
         mmo::network
         loft::common
 		loft::base
 		loft_window
 		loft::render_graph
+		tw::protocol
+		mmo::gui
         imgui::imgui
         imgui::plot
         glm::glm
         EnTT::EnTT
-        FastNoise
         Jolt
+        Tracy::TracyClient
+        TracyClient
+        pqxx
+        pq
 )
 
 target_include_directories(${PROJECT_NAME}

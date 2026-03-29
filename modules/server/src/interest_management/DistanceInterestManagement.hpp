@@ -20,7 +20,7 @@ template<typename T>
 class DistanceInterestManagement {
 private:
     const World* m_world;
-    
+
     const float m_view_distance;
 
 public:

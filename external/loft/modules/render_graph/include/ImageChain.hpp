@@ -11,11 +11,11 @@
  */
 struct ImageChain {
 private:
-    const std::vector<ImageView> m_images;
-	const VkFormat m_format;
-	const VkExtent2D m_extent;
+    std::vector<ImageView> m_images;
+	VkFormat m_format;
+	VkExtent2D m_extent;
 
-	const VkImageLayout m_layout;
+	VkImageLayout m_layout;
 
 public:
 	GET(m_layout, layout);
@@ -29,6 +29,29 @@ public:
     [[nodiscard]] inline const std::vector<ImageView>& views() const {
         return m_images;
     }
+
+    ImageChain(const ImageChain& other) :
+        m_format(other.m_format),
+        m_extent(other.m_extent), 
+        m_layout(other.m_layout) {
+
+        m_images.clear();
+        std::copy(other.m_images.begin(), other.m_images.end(),
+                std::back_inserter(m_images));
+    }
+
+    ImageChain& operator=(const ImageChain& other) {
+        m_images.clear();
+        std::copy(other.m_images.begin(), other.m_images.end(),
+                std::back_inserter(m_images));
+        m_format = other.m_format;
+        m_extent = other.m_extent;
+        m_layout = other.m_layout;
+        return *this;
+    }
+
+    ImageChain(ImageChain&&) = delete;
+    ImageChain& operator=(ImageChain&&) = delete;
 
 	ImageChain(VkFormat format,
 			VkExtent2D extent,

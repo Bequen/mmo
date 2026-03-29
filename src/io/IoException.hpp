@@ -11,11 +11,10 @@ class IoException : public std::exception {
     std::string m_message;
 
 public:
-    IoException(std::string filename, std::string what) : 
+    IoException(std::string filename, std::string what) :
         m_message(std::format("{}: {}", filename, what)),
         m_filename(filename)
-    {
-    }
+    { }
 
     const char* what() const noexcept override { return m_message.c_str(); }
 

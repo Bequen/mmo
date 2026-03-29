@@ -1,14 +1,24 @@
 cmake_minimum_required(VERSION 3.26)
 project(mmo_network)
 
+
 add_subdirectory(tests)
 
 file(GLOB FILES
     src/*.cpp
+    src/messenger/*.cpp
+    src/protocol/quicr/*.cpp
+    src/frames/*.cpp
 )
 
 file(GLOB HEADERS
     include/*.hpp
+    include/exception/*.hpp
+    include/io/*.hpp
+    include/messenger/*.hpp
+    include/packets/*.hpp
+    include/metrics/*.hpp
+    include/protocol/quicr/*.hpp
 )
 
 add_library(${PROJECT_NAME} OBJECT ${FILES})
@@ -21,6 +31,16 @@ target_sources(${PROJECT_NAME}
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE 1)
 
 target_include_directories(${PROJECT_NAME}
-        PUBLIC
-        ${PROJECT_SOURCE_DIR}/include/
+    PUBLIC
+    ./include/
+)
+
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE
+    spdlog::spdlog
+    tw::protocol
+    tl::expected
+    Tracy::TracyClient
+    TracyClient
+    EnTT::EnTT
 )

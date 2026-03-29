@@ -1,9 +1,11 @@
 #pragma once
 
+#include "Instance.hpp"
 #include "draw/WorldRenderer.hpp"
 #include "io/ShaderManager.hpp"
 #include "shaders/PipelineBuilder.h"
 #include "world/ChunkData.hpp"
+#include <spdlog/spdlog.h>
 
 namespace tw::drw {
 
@@ -27,7 +29,7 @@ private:
 
     lft::rg::RenderTaskBuilder create_render_task() {
         return lft::rg::render_task<Self>(
-                "terrain", this, 
+                "terrain", this,
                 [](const lft::rg::TaskBuildInfo& info,
                     Self* context) {
                     auto vertex_shader = context->m_shader_manager->load_shader("Opaque2.vert.spirv");
@@ -38,6 +40,8 @@ private:
                         .push_constant_range(0, sizeof(glm::mat4), VK_SHADER_STAGE_VERTEX_BIT)
     					.build(info.gpu());
 
+                    std::println("Viewport: {} {}", info.viewport().width, info.viewport().height);
+
                     context->m_pipeline = PipelineBuilder(info.gpu(), info.viewport(),
                             context->m_pipeline_layout, info.renderpass(),
                             1,
@@ -47,7 +51,7 @@ private:
                                             .binding = 0,
                                             .stride = sizeof(glm::vec3),
                                             .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-                                    }, 
+                                    },
                                 }, {
                                     { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
                                     { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(glm::vec3) * 1000 },
@@ -62,11 +66,24 @@ private:
                     auto binded_pipeline = info.recording()
                         .bind_graphics_pipeline(context->m_pipeline)
                         .bind_descriptor_set(0, context->m_world_renderer->global_descriptor_set());
-                    
+
+                    auto viewport = info.viewport();
+                    VkRect2D rect = {
+                        .offset = {
+                            .x = 0,
+                            .y = 0
+                        }, .extent = {
+                            .width = (uint32_t)viewport.width,
+                            .height = (uint32_t)std::abs(viewport.height)
+                        }
+                    };
+                    vkCmdSetViewport(info.recording().cmdbuf(), 0, 1, &viewport);
+                    vkCmdSetScissor(info.recording().cmdbuf(), 0, 1, &rect);
+
                     glm::vec3 center = context->m_world_renderer->camera().position();
 
                     uint32_t render_distance = 4;
-                    
+
                     glm::vec3 from = glm::floor(center - glm::vec3(render_distance));
                     glm::vec3 to = glm::ceil(center + glm::vec3(render_distance));
 
@@ -78,7 +95,7 @@ private:
                             auto& mesh = context->get_chunk_mesh(glm::ivec2(x, z));
 
                             glm::mat4 ts = glm::translate(glm::mat4(1.0f), glm::vec3(x * CHUNK_WIDTH, 0, z * CHUNK_WIDTH));
-                            binded_pipeline.push_constants(VK_SHADER_STAGE_VERTEX_BIT, 0, 
+                            binded_pipeline.push_constants(VK_SHADER_STAGE_VERTEX_BIT, 0,
                                     sizeof(glm::mat4), &ts);
 
                             info.recording().draw(mesh.num_vertices(), 1, mesh.vertex_offset(), 0);

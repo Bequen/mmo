@@ -18,6 +18,7 @@ namespace tw::drw {
 class WorldRenderer {
 private:
     const lft::win::Window* m_window;
+    VkExtent2D m_last_window_size;
     Instance m_instance;
     Surface m_surface;
     Gpu m_gpu;

@@ -14,7 +14,7 @@
 #include "RenderGraphBuilder.hpp"
 
 #include "draw/RenderPasses/CharacterRenderPass.hpp"
-#include "draw/RenderPasses/ImGuiRenderPass.hpp"
+#include "ImGuiRenderPass.hpp"
 #include "draw/RenderPasses/TerrainRenderPass.hpp"
 #include "world/Camera.hpp"
 #include "world/World.hpp"
@@ -67,7 +67,7 @@ Surface create_surface(lft::win::SDLWindow* window, const Instance* instance) {
 }
 
 lft::rg::RenderGraph WorldRenderer::init_render_graph() {
-    auto m_imgui_rp = new ImGuiRenderPass(&m_gpu, (const lft::win::SDLWindow*)m_window);
+    auto m_imgui_rp = new gui::ImGuiRenderPass(&m_gpu, (const lft::win::SDLWindow*)m_window);
     auto m_character_rp = new CharacterRenderPass(this, &m_shader_manager);
     auto m_terrain_rp = new TerrainRenderPass(this, &m_shader_manager);
 
@@ -85,8 +85,8 @@ VkDescriptorSetLayout create_global_descriptor_set_layout(const Gpu* gpu) {
 }
 
 VkDescriptorSet create_global_descriptor_set(
-        const Gpu* gpu, 
-        VkDescriptorSetLayout descriptor_set_layout, 
+        const Gpu* gpu,
+        VkDescriptorSetLayout descriptor_set_layout,
         Buffer camera_buffer
 ) {
     return ShaderInputSetBuilder()
@@ -151,14 +151,28 @@ void WorldRenderer::update_camera_buffer() {
 }
 
 void WorldRenderer::render() {
+    if(!m_window->has_size(m_last_window_size)) {
+        vkDeviceWaitIdle(m_gpu.dev());
+        m_swapchain.resize(m_window->get_size());
+        m_rendergraph_builder.set_image_chain(ImageChain::from_swapchain(m_swapchain));
+        m_rendergraph = m_rendergraph_builder.build();
+        m_last_window_size = m_window->get_size();
+    }
+
     uint32_t imageIdx = 0;
     auto result = m_swapchain.get_next_image_idx(
             VK_NULL_HANDLE, m_wait_on_image_fence, &imageIdx);
 
+
+    if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        std::println("Rebuilding");
+        m_rendergraph_builder.build();
+    }
+
     update_camera_buffer();
 
     m_rendergraph.run(imageIdx, VK_NULL_HANDLE, m_wait_on_image_fence);
-	
+
     m_swapchain.present({ m_rendergraph.buffer(0).final_signal(imageIdx) }, imageIdx);
 }
 

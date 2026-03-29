@@ -2,16 +2,27 @@
 
 #include <glm/glm.hpp>
 #include <entt/entt.hpp>
+#include <system_error>
+#include <unordered_map>
 
-#include "LoginHandler.hpp"
-#include "TcpSocket.hpp"
+#include "ClientManager.hpp"
+#include "Login.pb.h"
+#include "PlayerMove.pb.h"
+#include "TcpListener.hpp"
 #include "PlayerClient.hpp"
 #include "entt/entity/fwd.hpp"
 #include "interest_management/DistanceInterestManagement.hpp"
 #include "messages/PlayerMoveMessage.hpp"
-#include "messages/WorldStateMessage.hpp"
+#include "monitoring/BandwidthMonitor.hpp"
+#include "network/MessageDispatcher.hpp"
+#include "network/OutboundMessage.hpp"
+#include "network/InboundMessage.hpp"
+#include "network/PlayerSessionRegistry.hpp"
+#include "replication/StateReplicator.hpp"
+#include "systems/InterestSystem.hpp"
 #include "world/JoltPhysicsWorld.hpp"
 #include "world/World.hpp"
+#include "network/NetworkReceiver.hpp"
 
 namespace tw::net {
 
@@ -22,33 +33,35 @@ struct EntityInfo {
 
 class WorldServer {
 private:
-    TcpSocket m_server_socket;
-    entt::registry m_registry;
+    std::unique_ptr<BandwidthMonitor> m_monitor;
+    // ClientManager m_client_manager;
 
-    std::vector<PlayerClient> m_clients;
+    std::unique_ptr<PlayerSessionRegistry> m_player_session_registry;
 
-    World m_world;
+    std::unique_ptr<NetworkReceiver> m_network_receiver;
+
+    std::unique_ptr<MessageDispatcher> m_message_dispatcher;
+
+    std::unique_ptr<World> m_world;
     JoltPhysicsWorld m_physics_world;
-    server::im::DistanceInterestManagement<EntityPosition> m_im;
 
-    LoginHandler m_login_handler;
+    std::unordered_map<PlayerClientId, entt::entity> m_client_entity_mappings;
 
-    void enqueue_new_connections();
+    std::unique_ptr<im::InterestSystem> m_interest_system;
+    std::unique_ptr<StateReplicator> m_replicator;
 
-    WorldStateMessage build_world_status_message();
+    inline entt::entity get_client_entity(PlayerClientId clientId) {
+        return m_client_entity_mappings[clientId];
+    }
 
-    void handle_player_move(entt::entity entity, PlayerInputMessage&& message);
+    void player_update_handler(PlayerClientId clientId, mmo::PlayerMoveMessage&& message);
 
-    void join_request_handler(PlayerClient& client, const PlayerJoinRequestMessage& request);
-
-    std::vector<entt::entity> cleanup_clients();
+    void notify_new_entity(PlayerClient& client);
 
     void update_clients(uint32_t frame_idx);
 
 public:
-    WorldServer(int port);
-
-    WorldServer(TcpSocket&& socket);
+    WorldServer(int port, int quicr_port);
 
     void run();
 

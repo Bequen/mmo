@@ -1,47 +1,42 @@
 #include <cstdint>
 #include <exception>
-#include <stdexcept>
+#include <spdlog/spdlog.h>
 #include <print>
 
 #include "Address.hpp"
-#include "TcpSocket.hpp"
+#include "TcpListener.hpp"
 #include "entt/entt.hpp"
-#include "exception/SocketClosedException.hpp"
 #include "WorldServer.hpp"
 
 #define PORT 8080
 #define MAX_LINE 1024
 
-// find first free socket -> sometimes socket remaing stuck in WAIT state, even
-// after closing
-int bind_to_free_port(tw::net::TcpSocket& socket, int from, int to) {
+// find first free socket -> sometimes socket remaing stuck in WAIT state, even after closing
+std::optional<tw::net::TcpListener> bind_to_free_port(int from, int to) {
     for(int32_t i = from; i < to; i++) {
-        try {
-            socket.bind(tw::net::Address{{}, i});
-            return i;
-        } catch(std::runtime_error& err) { 
-            std::println("Runtime error: {}", err.what());
-        }
-        catch(tw::net::SocketClosedException err) {
-            std::println("Socket closed error: {}", err.what());
+        auto listener = tw::net::TcpListener::listen(tw::net::Address({}, i), i);
+        if(listener.has_value()) {
+            return std::move(listener.value());
         }
     }
 
-    return -1;
+    return {};
 }
 
 int main() {
-    tw::net::TcpSocket socket;
-    int port = bind_to_free_port(socket, 8100, 9000);
-    socket.set_non_blocking();
-
-    std::println("Bound to port: {}", port);
+    // auto listener = bind_to_free_port(8100, 9000);
+    // if(!listener.has_value()) {
+    //     spdlog::error("No free port found for server");
+    //     return 1;
+    // }
 
     try {
-        tw::net::WorldServer server(std::move(socket));
+        tw::net::WorldServer server(8100, 8101);
         server.run();
     } catch(std::exception e) {
         std::println("Exception: {}", e.what());
+        throw e;
     }
+
     return 0;
 }

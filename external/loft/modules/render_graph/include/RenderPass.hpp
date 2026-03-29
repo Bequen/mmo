@@ -92,21 +92,26 @@ class TaskRecordInfo {
 	uint32_t m_buffer_idx;
 	uint32_t m_image_idx;
 
+    VkViewport m_viewport;
+
 public:
 	GET(m_gpu, gpu);
 	REF(m_recording, recording);
 	GET(m_image_idx, image_idx);
 	GET(m_buffer_idx, buffer_idx);
+	GET(m_viewport, viewport);
 
 	TaskRecordInfo(
 			const Gpu* gpu,
 			lft::Recording recording,
 			uint32_t buffer_idx,
-			uint32_t image_in_flight_idx) :
+			uint32_t image_in_flight_idx,
+            VkViewport viewport) :
 		m_recording(recording),
 		m_image_idx(image_in_flight_idx),
 		m_buffer_idx(buffer_idx),
-		m_gpu(gpu) {
+		m_gpu(gpu),
+        m_viewport(viewport) {
 	}
 };
 

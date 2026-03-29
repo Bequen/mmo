@@ -7,13 +7,13 @@ file(GLOB FILES
 
 add_executable(${PROJECT_NAME} ${FILES})
 
-target_link_libraries(${PROJECT_NAME} 
-        PUBLIC 
+target_link_libraries(${PROJECT_NAME}
+        PUBLIC
         towards
         mmo::network
+        tw::protocol
         glm::glm
         EnTT::EnTT
-        FastNoise
         Jolt
 )
 

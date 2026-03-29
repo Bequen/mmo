@@ -5,6 +5,7 @@
 #include "world/World.hpp"
 #include "draw/MeshBuffer.hpp"
 #include "shaders/PipelineBuilder.h"
+#include <spdlog/spdlog.h>
 
 namespace tw::drw {
 
@@ -20,7 +21,7 @@ public:
 
     lft::rg::RenderTaskBuilder create_render_task() {
         return lft::rg::render_task<CharacterRenderPass>(
-                "character", this, 
+                "character", this,
                 [](const lft::rg::TaskBuildInfo& info,
                     CharacterRenderPass* context) {
                     auto vertex_shader = context->m_shader_manager->load_shader("Opaque.vert.spirv");
@@ -40,7 +41,7 @@ public:
                                             .binding = 0,
                                             .stride = sizeof(glm::vec3),
                                             .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-                                    }, 
+                                    },
                                 }, {
                                     { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
                                     { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(glm::vec3) * 1000 },
@@ -56,10 +57,23 @@ public:
                         .bind_graphics_pipeline(context->m_pipeline)
                         .bind_descriptor_set(0, context->m_world_renderer->global_descriptor_set());
 
+                    auto viewport = info.viewport();
+                    VkRect2D rect = {
+                        .offset = {
+                            .x = 0,
+                            .y = 0
+                        }, .extent = {
+                            .width = (uint32_t)viewport.width,
+                            .height = (uint32_t)std::abs(viewport.height)
+                        }
+                    };
+                    vkCmdSetViewport(info.recording().cmdbuf(), 0, 1, &viewport);
+                    vkCmdSetScissor(info.recording().cmdbuf(), 0, 1, &rect);
+
                     context->m_world_renderer->world()->registry()
                         .view<Mesh, Transform>()
                         .each([&](const Mesh& mesh, const Transform& transform) {
-                                binded_pipeline.push_constants(VK_SHADER_STAGE_VERTEX_BIT, 0, 
+                                binded_pipeline.push_constants(VK_SHADER_STAGE_VERTEX_BIT, 0,
                                         sizeof(glm::mat4), &transform.transform);
                                 info.recording().draw(mesh.num_vertices(), 1, mesh.vertex_offset(), 0);
                         });
@@ -89,4 +103,3 @@ public:
 };
 
 }
-

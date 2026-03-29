@@ -5,7 +5,7 @@
 
 #define EXPECT(expression,msg) if(!(expression)) { throw std::runtime_error(msg); }
 
-enum Result {
+enum ResultCode {
 	RESULT_OK,
 	RESULT_INVALID_ARGUMENT,
 	RESULT_DRW_FAILURE,

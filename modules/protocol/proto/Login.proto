@@ -1,0 +1,14 @@
+edition = "2023";
+
+package mmo;
+
+message LoginRequest {
+    string username = 1;
+    string password = 2;
+}
+
+message LoginResponse {
+    bool success = 1;
+    string message = 2;
+    int32 entity_id = 3;
+}

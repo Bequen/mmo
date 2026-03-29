@@ -83,13 +83,21 @@ void RenderGraph::record_command_buffer(
 		throw std::runtime_error("Failed to begin command buffer");
 	}
 
+
+	auto& tasks = pBuffer->batch(batch_idx).tasks;
 	TaskRecordInfo record_info(
 		m_gpu,
 		lft::Recording(cmdbuf),
 		buffer_idx,
-		output_idx);
-
-	auto& tasks = pBuffer->batch(batch_idx).tasks;
+		output_idx,
+        VkViewport {
+            .x = 0,
+            .y = (float)tasks[0].extent.height,
+            .width = (float)tasks[0].extent.width,
+            .height = -(float)tasks[0].extent.height,
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f,
+        });
 	for(auto& task : tasks) {
 	    if(task.pDefinition.type() == GRAPHICS_TASK) {
     		std::vector<VkClearValue> clear_values(

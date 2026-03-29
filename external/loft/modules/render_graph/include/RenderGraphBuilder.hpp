@@ -19,6 +19,7 @@ private:
 	const Gpu* m_gpu;
 
 	ImageChain m_output_chain;
+
 	std::string m_output_name;
 
 	std::vector<RenderGraphBuffer> m_buffers;
@@ -122,6 +123,28 @@ private:
 	void update_task_buffer(const Task& task, const RenderGraphBuffer* pBuffer);
 	bool m_store_all_images = false;
 
+    VkExtent2D get_extent(VkExtent2D extent) const {
+        if(extent.width == 0) {
+            extent.width = m_output_chain.extent().width;
+        } if(extent.height == 0) {
+            extent.height = m_output_chain.extent().height;
+        }
+
+        return extent;
+    }
+
+    VkExtent2D get_extent_for_task(const TaskInfo& task_info) const {
+        VkExtent2D extent = task_info.m_extent;
+
+        if(extent.width == 0) {
+            extent.width = m_output_chain.extent().width;
+        } if(extent.height == 0) {
+            extent.height = m_output_chain.extent().height;
+        }
+
+        return extent;
+    }
+
 public:
     void remove_task(const std::string& name) {
         m_updated_tasks.insert(name);
@@ -129,6 +152,19 @@ public:
 
     void set_store_all_images(bool value) {
         m_store_all_images = value;
+    }
+    
+    void set_image_chain(const ImageChain& image_chain) {
+        m_output_chain = image_chain;
+        for(int i = 0; i < m_buffers[0].num_batches(); i++) {
+            for(auto& task : m_buffers[0].batch(i).tasks) {
+                mark_task_updated(task.pDefinition.name());
+            }
+        }
+
+        for(auto& view : m_output_chain.views()) {
+            std::println("Set View: {:#06x}", (unsigned long)view.view);
+        }
     }
 
 	GET(m_num_buffers, num_buffers);
@@ -236,6 +272,10 @@ private:
 public:
     void store_all_images() {
         m_store_all_images = true;
+    }
+
+    void set_image_chain(const ImageChain& output_chain) {
+        m_allocator.set_image_chain(output_chain);
     }
 
 	Builder(const Gpu* gpu,

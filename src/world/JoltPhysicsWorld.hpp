@@ -3,7 +3,8 @@
 #include "world/RigidBody.hpp"
 #include <iostream>
 #include <print>
-#include "HistoryBuffer.hpp"
+#include "metrics/HistoryBuffer.hpp"
+#include "ThreadPool.hpp"
 
 #include <glm/glm.hpp>
 #include <Jolt/Jolt.h>
@@ -39,9 +40,9 @@ public:
 		switch (inObject1)
 		{
 		case Layers::NON_MOVING:
-			return inObject2 == Layers::MOVING; // Non moving only collides with moving
+			return true; // return inObject2 == Layers::MOVING; // Non moving only collides with moving
 		case Layers::MOVING:
-			return true; // Moving collides with everything
+			return inObject2 == Layers::NON_MOVING; // Moving collides with everything
 		default:
 			JPH_ASSERT(false);
 			return false;
@@ -101,9 +102,10 @@ public:
 		switch (inLayer1)
 		{
 		case Layers::NON_MOVING:
-			return inLayer2 == BroadPhaseLayers::MOVING;
+    		return true;
+			// return inLayer2 == BroadPhaseLayers::MOVING;
 		case Layers::MOVING:
-			return true;
+			return inLayer2 == BroadPhaseLayers::NON_MOVING;
 		default:
 			JPH_ASSERT(false);
 			return false;
@@ -117,8 +119,8 @@ public:
 	// See: ContactListener
 	virtual JPH::ValidateResult	OnContactValidate(
             const JPH::Body &inBody1,
-            const JPH::Body &inBody2, 
-            JPH::RVec3Arg inBaseOffset, 
+            const JPH::Body &inBody2,
+            JPH::RVec3Arg inBaseOffset,
             const JPH::CollideShapeResult &inCollisionResult
     ) override {
         std::cout << "Contact validate callback" << std::endl;
@@ -128,9 +130,9 @@ public:
 	}
 
 	virtual void OnContactAdded(
-            const JPH::Body &inBody1, 
-            const JPH::Body &inBody2, 
-            const JPH::ContactManifold &inManifold, 
+            const JPH::Body &inBody1,
+            const JPH::Body &inBody2,
+            const JPH::ContactManifold &inManifold,
             JPH::ContactSettings &ioSettings
     ) override
 	{
@@ -140,7 +142,7 @@ public:
 	virtual void OnContactPersisted(
             const JPH::Body &inBody1,
             const JPH::Body &inBody2,
-            const JPH::ContactManifold &inManifold, 
+            const JPH::ContactManifold &inManifold,
             JPH::ContactSettings &ioSettings
     ) override
 	{
@@ -171,7 +173,8 @@ class World;
 
 class JoltPhysicsWorld {
 private:
-    JPH::TempAllocatorImpl temp_allocator;
+    ThreadPool m_thread_pool;
+    std::vector<std::unique_ptr<JPH::TempAllocatorImpl>> temp_allocator;
     JPH::JobSystemThreadPool job_system;
 
     BPLayerInterfaceImpl broad_phase_layer_interface;
@@ -184,7 +187,7 @@ private:
 
     JPH::CharacterVsCharacterCollisionSimple m_character_vs_character_collision;
 
-    HistoryBuffer<int, std::unique_ptr<JPH::StateRecorderImpl>, 10> m_history;
+    HistoryBuffer<int, std::shared_ptr<JPH::StateRecorderImpl>> m_history;
 
     inline JPH::BodyInterface &body_interface() {
         return physics_system.GetBodyInterface();
@@ -204,7 +207,7 @@ public:
     RigidBody create_dynamic_rigid_body(JPH::Shape* shape, glm::vec3 position) {
         JPH::BodyCreationSettings settings(
                 shape,
-                JPH::RVec3(position.x, position.y, position.z), 
+                JPH::RVec3(position.x, position.y, position.z),
                 JPH::Quat::sIdentity(),
                 JPH::EMotionType::Dynamic,
                 Layers::MOVING);
@@ -219,12 +222,12 @@ public:
         settings.mShape = shape;
         settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -0.5f);
 
-        auto* character = new JPH::CharacterVirtual(&settings, 
-                JPH::RVec3(position.x, position.y, position.z), 
-                JPH::Quat::sIdentity(), 
+        auto* character = new JPH::CharacterVirtual(&settings,
+                JPH::RVec3(position.x, position.y, position.z),
+                JPH::Quat::sIdentity(),
                 0, &physics_system);
         character->SetCharacterVsCharacterCollision(&m_character_vs_character_collision);
-        m_character_vs_character_collision.Add(character);
+        // m_character_vs_character_collision.Add(character);
 
         return character;
     }
@@ -240,11 +243,15 @@ public:
     void step(uint32_t frame_idx, double delta_time);
 
     void rollback(uint32_t frame) {
+        if(frame == 0) return;
         auto snapshot = m_history.get(frame);
-        if(!snapshot.has_value() || !physics_system.RestoreState(*snapshot.value()->get())) {
+
+        if(!snapshot.has_value()) {
             throw std::runtime_error("Failed to restore history");
         }
-        std::println("Rolling back");
+
+        auto snapshot_value = snapshot.value()->get();
+        physics_system.RestoreState(*snapshot_value);
     }
 
     void apply_rollback(uint32_t frame) {

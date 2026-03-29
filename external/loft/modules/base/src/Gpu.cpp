@@ -2,12 +2,12 @@
 
 #include "resources/DefaultAllocator.h"
 #include "result.hpp"
+#include "result.hpp"
 
 #include <vector>
 #include <iostream>
 #include <memory>
 #include <cstring>
-#include <vulkan/vulkan_core.h>
 
 static const char *DEVICE_EXTENSIONS[] = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
@@ -103,7 +103,7 @@ std::vector<int32_t> Gpu::get_queues(std::optional<Surface*> surface) {
     return { graphicsQueue, transferQueue, presentQueue };
 }
 
-Result Gpu::create_logical_device(std::optional<Surface*> supportedSurface) {
+ResultCode Gpu::create_logical_device(std::optional<Surface*> supportedSurface) {
     auto queueFamilies = get_queues(supportedSurface);
 
     std::vector<VkDeviceQueueCreateInfo> queueInfos(queueFamilies.size());
@@ -213,7 +213,7 @@ Result Gpu::create_logical_device(std::optional<Surface*> supportedSurface) {
 	return RESULT_OK;
 }
 
-Result Gpu::choose_gpu(VkPhysicalDevice *pOut) {
+ResultCode Gpu::choose_gpu(VkPhysicalDevice *pOut) {
 	uint32_t numDevices = 0;
 	vkEnumeratePhysicalDevices(m_instance->instance(), &numDevices, nullptr);
     if(numDevices == 0) {
@@ -266,7 +266,7 @@ Result Gpu::choose_gpu(VkPhysicalDevice *pOut) {
 	return RESULT_OK;
 }
 
-Result Gpu::create_descriptor_pool() {
+ResultCode Gpu::create_descriptor_pool() {
     VkDescriptorPoolSize poolSizes[] =
     {
         {

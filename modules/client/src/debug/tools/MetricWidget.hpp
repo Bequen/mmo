@@ -4,7 +4,7 @@
 #include <implot.h>
 #include <implot_internal.h>
 
-#include "BucketMetric.hpp"
+#include "metrics/BucketMetric.hpp"
 
 namespace tw::dbg::tools {
 
@@ -81,7 +81,7 @@ public:
         if(ImPlot::BeginPlot(m_name.c_str())) {
             auto from = tail_timeline.empty() ? *(head_timeline.end() - 1) : *(tail_timeline.end() - 1);
 
-            ImPlot::SetupAxes("Time", "Ping (ms)", ImPlotAxisFlags_None, ImPlotAxisFlags_None);
+            ImPlot::SetupAxes("Time", m_name.c_str(), ImPlotAxisFlags_None, ImPlotAxisFlags_None);
             if(m_is_scrolling) {
                 ImPlot::SetupAxisLimits(ImAxis_X1, from - m_metric_history, from, ImGuiCond_Always);
             }

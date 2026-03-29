@@ -6,14 +6,16 @@ class ImageResource {
 public:
 	VkImage image;
 	VkImageView image_view;
+    VkExtent2D extent;
 
 	ImageResource(const ImageResource&) = default;
 	ImageResource(ImageResource&) = default;
 	ImageResource(ImageResource&&) = default;
 
-	ImageResource(VkImage image, VkImageView image_view) :
+	ImageResource(VkImage image, VkImageView image_view, VkExtent2D extent) :
 		image(image),
-		image_view(image_view) {
+		image_view(image_view),
+        extent(extent) {
 	};
 };
 

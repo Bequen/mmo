@@ -3,6 +3,7 @@
 #include "glm/common.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/glm.hpp"
+#include <spdlog/spdlog.h>
 
 namespace tw {
 
@@ -12,14 +13,11 @@ struct Transform {
 public:
     Transform(glm::vec3 translation) :
         transform(glm::translate(glm::mat4(1.0f), translation))
-    {
-
-    }
+    { }
 
     Transform(glm::mat4 transform) :
         transform(transform)
-    {
-    }
+    { }
 
     void set_position(glm::vec3 position) {
         transform = glm::translate(glm::mat4(1.0f), position);
@@ -36,7 +34,7 @@ public:
     constexpr glm::vec3 position() const {
         return glm::vec3(transform[3][0], transform[3][1], transform[3][2]) * transform[3][3];
     }
-    
+
     constexpr glm::vec3 right() const {
         return glm::vec3(transform[2][0], transform[2][1], transform[2][2]) * transform[2][3];
     }

@@ -84,7 +84,7 @@ VkAttachmentDescription2 BuilderAllocator::create_attachment_description(
 
 	VkImageLayout middle_layout = definition.is_color() ?
 		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL :
-		VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	VkImageLayout last_layout =
 		(definition.name() == m_output_name ? m_output_chain.layout() :
@@ -99,7 +99,7 @@ VkAttachmentDescription2 BuilderAllocator::create_attachment_description(
 		load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
 		initial_layout = definition.is_color() ?
 		    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL :
-		    VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+		    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	} else {
 		load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -245,8 +245,11 @@ ImageResource BuilderAllocator::allocate_image_resource(
             .usage = MEMORY_USAGE_AUTO_PREFER_DEVICE
     };
 
+    auto extent = get_extent(desc.extent());
+    std::println("Creating resource {} {}", extent.width, extent.height);
+
 	ImageCreateInfo image_info = {
-            .extent = desc.extent(),
+            .extent = extent,
             .format = desc.format(),
             .usage = VK_IMAGE_USAGE_SAMPLED_BIT |
                         (VkImageUsageFlags)(desc.is_color() ?
@@ -271,7 +274,7 @@ ImageResource BuilderAllocator::allocate_image_resource(
 			.layerCount = 1,
 	});
 
-	return ImageResource(image.img, view.view);
+	return ImageResource(image.img, view.view, image_info.extent);
 }
 
 BufferResource BuilderAllocator::allocate_buffer_resource(
@@ -304,9 +307,12 @@ ImageView BuilderAllocator::get_attachment(
 		return m_output_chain.views()[output_idx];
 	}
 
+    auto extent = get_extent(desc.extent());
+
 	auto attachment = pBuffer->get_image_resource(desc.name());
-	if(!attachment.has_value()) {
-	    auto resource = allocate_image_resource(correct_resource_description(desc));
+	if(!attachment.has_value() || attachment.value()->extent.width != extent.width ||
+            attachment.value()->extent.height != extent.height) {
+	    auto resource = allocate_image_resource(desc);
 
 		VkDebugUtilsObjectNameInfoEXT img_dbg_info = {
             .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
@@ -353,7 +359,9 @@ VkFramebuffer BuilderAllocator::create_framebuffer(
 		throw std::runtime_error("Framebuffer attachments size mismatch");
 	}
 
-	auto fb = FramebufferBuilder(renderpass, task_info.m_extent, attachments)
+    auto extent = get_extent_for_task(task_info);
+    std::println("Creating framebuffer of size: {} {}", extent.width, extent.height);
+	auto fb = FramebufferBuilder(renderpass, get_extent_for_task(task_info), attachments)
 		.build(m_gpu);
 	VkDebugUtilsObjectNameInfoEXT render_pass_dbg_info = {
         .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
@@ -385,7 +393,7 @@ Task BuilderAllocator::create_graphics_task(
 	}
 
 	task.framebuffer = framebuffers;
-	task.extent = m_output_chain.extent();
+	task.extent = get_extent_for_task(task_info);
 
 	return task;
 }
@@ -513,6 +521,7 @@ void BuilderAllocator::update_task_queue(
             else if(is_task_updated(task_infos[queue_idx].name()) ||
                     is_render_pass_updated(*next_task, cleared_resources, resource_count_down)
             ) {
+                std::println("Updating");
                 auto task = create_task(task_infos[queue_idx], pBuffer, cleared_resources, resource_count_down);
     			next_batch->update_task(next_task_idx, task);
             }
@@ -552,15 +561,15 @@ RenderGraph BuilderAllocator::allocate(
 ) {
     std::println("Task count: {}", task_infos.size());
 
-    for(TaskInfo& task_info : task_infos) {
-        if(task_info.m_extent.width == 0.0f) {
-            task_info.m_extent.width = m_output_chain.extent().width;
-        }
-
-        if(task_info.m_extent.height == 0.0f) {
-            task_info.m_extent.height = m_output_chain.extent().height;
-        }
-    }
+    // for(TaskInfo& task_info : task_infos) {
+    //     if(task_info.m_extent.width == 0.0f) {
+    //         task_info.m_extent.width = m_output_chain.extent().width;
+    //     }
+    //
+    //     if(task_info.m_extent.height == 0.0f) {
+    //         task_info.m_extent.height = m_output_chain.extent().height;
+    //     }
+    // }
 
 	std::vector<RenderGraphBuffer*> buffers(num_buffers());
 	for(uint32_t buffer_idx = 0; buffer_idx < num_buffers(); buffer_idx++) {

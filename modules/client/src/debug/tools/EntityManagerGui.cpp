@@ -1,21 +1,20 @@
 #include "EntityManagerGui.hpp"
 
-#include "debug/ComponentGui.hpp"
 #include "debug/tools/MatrixWidget.hpp"
-#include "ecs/PlayerInfoComponent.hpp"
-#include "world/CharacterBody.hpp"
-#include "world/CharacterController.hpp"
-#include "world/EntityInterpolation.hpp"
-#include "world/Transform.hpp"
-#include "world/WorldEntity.hpp"
-#include "debug/DebugComponent.hpp"
-#include "draw/Mesh.hpp"
+#include "debug/EntityInterpolationDebug.hpp"
 #include "debug/CharacterBodyDebug.hpp"
 #include "debug/CharacterControllerDebug.hpp"
-#include "debug/EntityInterpolationDebug.hpp"
+
+#include "network/EntityInterpolation.hpp"
+#include "world/CharacterBody.hpp"
+#include "world/CharacterController.hpp"
+#include "world/Transform.hpp"
+#include "world/WorldEntity.hpp"
+#include "draw/Mesh.hpp"
 
 #include <imgui.h>
 #include <entt/entity/entity.hpp>
+#include <spdlog/spdlog.h>
 
 namespace tw::dbg::tools {
 
@@ -29,6 +28,8 @@ void draw_transform_controls(Transform* transform) {
 }
 
 void EntityManagerGui::draw_entity_components() {
+    ImGui::Text("Entity ID: %d", (uint32_t)m_selected);
+
     ImGui::BeginChild("Transform Component", ImVec2(0, 0), ImGuiChildFlags_Border);
 
     auto transform = m_world->registry().try_get<Transform>(m_selected);
@@ -48,7 +49,7 @@ void EntityManagerGui::draw_entity_components() {
         ImGui::Text("Vertex offset: %i", mesh->vertex_offset());
     }
 
-    draw_debug_components<tw::CharacterBody, tw::CharacterController, EntityInterpolation>();
+    draw_debug_components<tw::CharacterBody, tw::CharacterController, tw::net::EntityPositionInterpolation>();
 
     // auto character = m_world->registry().try_get<tw::CharacterBody>(m_selected);
     // if(character != nullptr) {
@@ -68,13 +69,15 @@ void EntityManagerGui::draw() {
 
     ImGui::BeginChild("Entities", ImVec2(0, 260), ImGuiChildFlags_Border);
     ImGui::SeparatorText("Entities");
-    
+
     auto view = m_world->registry().view<const WorldEntity>();
     view.each([&](const auto entity, const WorldEntity& info) {
+            ImGui::PushID((uint32_t)info.entity_id);
             if(ImGui::Selectable(info.name.c_str(), m_selected_entity == info.entity_id)) {
                 m_selected_entity = info.entity_id;
                 m_selected = entity;
             }
+            ImGui::PopID();
     });
 
     ImGui::EndChild();

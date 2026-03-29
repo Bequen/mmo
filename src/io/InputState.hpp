@@ -60,6 +60,7 @@ public:
         m_window(window),
         m_is_quit(false)
     {
+        m_is_pressed[0] = m_is_pressed[1] = m_is_pressed[2] = m_is_pressed[3] = false;
     }
 
     void update() {
@@ -89,7 +90,7 @@ public:
                         case SDLK_d:
                             m_is_pressed[3] = event.key.state;
                             break;
-                    } 
+                    }
                 } break;
                 case SDL_MOUSEMOTION:
                     m_motion_x = event.motion.xrel;
@@ -118,7 +119,7 @@ public:
 
         float motion[2] = {instance->motion_x(), instance->motion_y()};
         ImGui::InputFloat2("Motion", motion);
-        
+
         float axis[2] = {instance->axis_x(), instance->axis_y()};
         ImGui::InputFloat2("Axis", axis);
     }

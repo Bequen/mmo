@@ -11,7 +11,8 @@ ThirdPersonPlayerController::ThirdPersonPlayerController(Camera* camera, glm::ve
     m_camera_rotation(1.0f, 0.0f, 0.0f, 0.0f),
     m_camera_zoom(10.0f),
     m_sensitivity(0.01f),
-    m_target(target)
+    m_target(target),
+    m_input(0.0f, 0.0f, 0.0f)
 {
 
 }
@@ -42,7 +43,7 @@ void ThirdPersonPlayerController::update(const tw::io::InputManager* input, doub
     } else {
         m_input = glm::vec3(0.0f);
     }
-    
+
     glm::quat yaw = glm::angleAxis(-input->motion_x() * m_sensitivity, glm::vec3(0, 1, 0));
     glm::quat pitch = glm::angleAxis(-input->motion_y() * m_sensitivity, glm::vec3(1, 0, 0));
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "BucketMetric.hpp"
-#include "StatsLogger.hpp"
+#include "metrics/BucketMetric.hpp"
+#include "metrics/NetworkStatsLogger.hpp"
 #include "debug/tools/MetricWidget.hpp"
 
 #include <implot.h>
@@ -11,21 +11,21 @@ namespace tw::dbg::tools {
 
 class NetworkStatsGui {
 private:
-    MetricWidget<uint32_t, std::chrono::seconds, net::AverageOp<uint32_t>> m_ping_widget;
-    MetricWidget<uint32_t, std::chrono::seconds> m_outgoing_widget;
-    MetricWidget<uint32_t, std::chrono::seconds> m_incoming_widget;
+    // MetricWidget<uint32_t, std::chrono::seconds, net::AverageOp<uint32_t>> m_ping_widget;
+    // MetricWidget<uint32_t, std::chrono::seconds> m_outgoing_widget;
+    // MetricWidget<uint32_t, std::chrono::seconds> m_incoming_widget;
 
 public:
-    NetworkStatsGui() :
-        m_ping_widget("Ping", net::NetworkStatsLogger::instance()->ping()),
-        m_outgoing_widget("Outgoing", net::NetworkStatsLogger::instance()->outgoing()),
-        m_incoming_widget("Incoming", net::NetworkStatsLogger::instance()->incoming())
-    {
-    }
+    // NetworkStatsGui() :
+    //     m_ping_widget("Ping", net::NetworkStatsLogger::instance()->ping()),
+    //     m_outgoing_widget("Outgoing", net::NetworkStatsLogger::instance()->outgoing()),
+    //     m_incoming_widget("Incoming", net::NetworkStatsLogger::instance()->incoming())
+    // {
+    // }
 
     void draw() {
-        auto* instance = net::NetworkStatsLogger::instance();
-        auto& ping = instance->ping();
+        // auto* instance = net::NetworkStatsLogger::instance();
+        // auto& ping = instance->ping();
 
         ImGui::Begin("Network Stats");
 
@@ -51,9 +51,9 @@ public:
             ImPlot::EndPlot();
         } */
 
-        m_ping_widget.draw();
-        m_outgoing_widget.draw();
-        m_incoming_widget.draw();
+        // m_ping_widget.draw();
+        // m_outgoing_widget.draw();
+        // m_incoming_widget.draw();
 
         ImGui::End();
     }

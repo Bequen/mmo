@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.26)
 project(towards)
 
+enable_testing()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -11,8 +12,12 @@ endif()
 set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld")
 set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld")
 set(CMAKE_MODULE_LINKER_FLAGS "-fuse-ld=lld")
+set(EXPECTED_BUILD_TESTS OFF CACHE BOOL "Disable expected tests" FORCE)
 
 add_definitions(-DIMGUI_IMPL_VULKAN_USE_VOLK)
+add_definitions(-DSPDLOG_COMPILED_LIB)
+add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
+add_definitions(-DTRACY_ENABLE)
 
 set(LFT_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
 
@@ -25,6 +30,8 @@ add_subdirectory(./external/loft)
 add_subdirectory(./external/imgui)
 add_subdirectory(./external/implot)
 # add_subdirectory(./external/FastNoise2/)
+#
+option(TRACY_ENABLE "" ON)
 
 # External libraries
 include(FetchContent)
@@ -33,14 +40,14 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release;Distribution")
 FetchContent_Declare(
          glm
         GIT_REPOSITORY https://github.com/g-truc/glm
-        GIT_TAG        1.0.1 
+        GIT_TAG        1.0.1
         SOURCE_DIR     ./external/glm/
 		GIT_SHALLOW 1
 )
 
 FetchContent_Declare(
     entt
-    GIT_REPOSITORY      https://github.com/skypjack/entt 
+    GIT_REPOSITORY      https://github.com/skypjack/entt
     GIT_TAG             v3.15.0
     SOURCE_DIR          ./external/entt
     GIT_SHALLOW         1
@@ -68,13 +75,37 @@ FetchContent_Declare(
 )
 
 
-FetchContent_MakeAvailable(glm entt Catch2 JoltPhysics FastNoise2)
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY "https://github.com/gabime/spdlog"
+    GIT_TAG "v1.16.0"
+    GIT_SHALLOW         1
+)
+
+FetchContent_Declare(
+    expected
+    GIT_REPOSITORY https://github.com/TartanLlama/expected
+    GIT_SHALLOW 1
+)
+
+FetchContent_Declare(
+    tracy
+    GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+    GIT_TAG master
+    GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(glm entt Catch2 JoltPhysics spdlog expected tracy)
+
+find_package(Protobuf CONFIG REQUIRED)
 
 add_subdirectory(./modules/network/)
 add_subdirectory(./modules/protocol/)
 add_subdirectory(./modules/server/)
 add_subdirectory(./modules/client/)
 add_subdirectory(./modules/mock_client/)
+add_subdirectory(./modules/gui/)
+add_subdirectory(./modules/server_gui/)
 
 
 file(GLOB FILES
@@ -111,17 +142,21 @@ target_include_directories(
 )
 
 target_link_libraries(
-		${PROJECT_NAME} 
+		${PROJECT_NAME}
 
         PUBLIC
         mmo::network
         tw::protocol
+
         loft::common
 		loft::base
 		loft::render_graph
+
         glm::glm
         EnTT::EnTT
-        FastNoise
         Jolt
+        tl::expected
+        Tracy::TracyClient
+        pqxx
+        pq
 )
-

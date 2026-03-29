@@ -1,6 +1,6 @@
 #pragma once
 
-#include "HistoryBuffer.hpp"
+#include "metrics/HistoryBuffer.hpp"
 #include <glm/glm.hpp>
 
 #include <Jolt/Jolt.h>
@@ -16,8 +16,7 @@ public:
 
     CharacterBody(JPH::CharacterVirtual* character) :
         m_character(character)
-    {
-    }
+    { }
 };
 
 }
