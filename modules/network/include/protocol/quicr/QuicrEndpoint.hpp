@@ -6,6 +6,7 @@
 
 #include <tl/expected.hpp>
 #include <unordered_map>
+#include <utility>
 
 namespace tw::net::quicr {
 
@@ -14,7 +15,7 @@ class QuicrConnectionListener;
 
 class QuicrEndpoint {
     int32_t m_socket_fd;
-    std::unordered_map<uint64_t, std::unique_ptr<QuicrConnection>> m_connections;
+    std::unordered_map<uint64_t, std::shared_ptr<QuicrConnection>> m_connections;
 
     std::vector<std::byte> m_inbound_buffer;
 
@@ -24,14 +25,38 @@ class QuicrEndpoint {
 
     QuicrEndpoint(int socket_fd);
 
+    void move_from(QuicrEndpoint&& other) {
+        m_socket_fd = std::exchange(other.m_socket_fd, -1);
+        m_connections = std::move(other.m_connections);
+        m_inbound_buffer = std::move(other.m_inbound_buffer);
+        m_new_connection_handler = std::exchange(other.m_new_connection_handler, nullptr);
+    }
 
 public:
-
     QuicrEndpoint() : m_socket_fd(-1) { }
     QuicrEndpoint(const QuicrEndpoint&) = delete;
-    QuicrEndpoint(QuicrEndpoint&&) = default;
+    QuicrEndpoint(QuicrEndpoint&& other) {
+        move_from(std::move(other));
+    }
+
     QuicrEndpoint& operator=(const QuicrEndpoint&) = delete;
-    QuicrEndpoint& operator=(QuicrEndpoint&&) = default;
+    QuicrEndpoint& operator=(QuicrEndpoint&& other) {
+        move_from(std::move(other));
+        return *this;
+    }
+
+    ~QuicrEndpoint() {
+        ::close(m_socket_fd);
+        m_socket_fd = -1;
+    }
+
+    std::vector<std::pair<uint64_t, std::shared_ptr<QuicrConnection>>> clients() const {
+        std::vector<std::pair<uint64_t, std::shared_ptr<QuicrConnection>>> result;
+        for (const auto& [id, connection] : m_connections) {
+            result.emplace_back(id, connection);
+        }
+        return result;
+    }
 
     static tl::expected<QuicrEndpoint, NetworkError> create();
 

@@ -2,14 +2,12 @@
 
 #include "Address.hpp"
 #include "NetworkError.hpp"
-#include "UdpStream.hpp"
 #include "bytebuffer/ByteBuffer.hpp"
+#include "protocol/quicr/QuicrConnectionIdGenerator.hpp"
 #include "protocol/quicr/QuicrEndpoint.hpp"
-#include "protocol/quicr/QuicrFrameType.hpp"
+#include "protocol/quicr/QuicrError.hpp"
 #include "protocol/quicr/QuicrPacket.hpp"
 #include "protocol/quicr/QuicrReliability.hpp"
-#include "protocol/quicr/VarInt.hpp"
-#include "spdlog/spdlog.h"
 #include <cstddef>
 #include <chrono>
 #include <deque>
@@ -75,7 +73,7 @@ class QuicrEndpoint;
 /**
  * Established QUICr connection.
  */
-class QuicrConnection {
+class QuicrConnection : Read<std::byte> {
     static constexpr int PROTOCOL_VERSION = 1;
     static constexpr int MAX_HELLO_RETRIES = 5;
     static constexpr int HELLO_RETRY_INTERVAL_MS = 200;
@@ -105,6 +103,8 @@ class QuicrConnection {
 
     std::vector<QuicrFrame> m_outbound_frames;
 
+    std::vector<uint32_t> m_hello_packets;
+
     /**
      * Builds and writes next datagram.
      */
@@ -114,8 +114,8 @@ public:
     QuicrConnection(uint64_t self_id, uint64_t peer_id, Address peer_address, QuicrEndpoint* endpoint) :
         m_peer_address{peer_address},
         m_endpoint{endpoint},
-        m_self_id{self_id},
-        m_peer_id{peer_id},
+        m_self_id{generate_id()},
+        m_peer_id{generate_id()},
         m_state(QuicrConnectionState::Closed),
         m_last_heartbeat_received(Clock::now()),
         m_recv_buffer(64 * 1024),
@@ -152,7 +152,11 @@ public:
 
     void send_initial_hello();
 
-    bool push_stream_frame(std::span<std::byte> data, bool is_reliable);
+    /**
+     * Schedules one stream frame to be sent.
+     */
+    tl::expected<void, QuicrError>
+    send_message(std::span<std::byte> data, bool is_reliable);
 
     /*
      * Processes stream frame and appends message to the queue.
@@ -167,6 +171,8 @@ public:
     void send_hello();
 
     bool process_hello(const QuicrPacket& packet, const QuicrFrame& frame);
+
+    bool process_hello_fin(const QuicrPacket& packet, const QuicrFrame& frame);
 
     /**
      * Hello ACK frame:
@@ -196,7 +202,7 @@ public:
 
     // void drain_socket();
 
-    tl::expected<size_t, NetworkError> read_into(std::span<std::byte> target);
+    tl::expected<size_t, NetworkError> read_into(std::span<std::byte> target) override;
 
     void on_tick(std::chrono::steady_clock::time_point now);
 

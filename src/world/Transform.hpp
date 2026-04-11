@@ -31,7 +31,7 @@ public:
         transform = glm::lookAt(eye, target, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
-    constexpr glm::vec3 position() const {
+    inline constexpr glm::vec3 position() const {
         return glm::vec3(transform[3][0], transform[3][1], transform[3][2]) * transform[3][3];
     }
 

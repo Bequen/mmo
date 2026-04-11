@@ -1,9 +1,12 @@
 #include "protocol/quicr/QuicrEndpoint.hpp"
 #include "protocol/quicr/QuicrConnection.hpp"
 #include "protocol/quicr/QuicrConnectionListener.hpp"
-#include "protocol/quicr/QuicrConnectionIdGenerator.hpp"
+#include "protocol/quicr/QuicrEncoder.hpp"
 #include "tl/expected.hpp"
 #include <chrono>
+#include <fcntl.h>
+#include <memory>
+#include <tracy/Tracy.hpp>
 
 namespace tw::net::quicr {
 
@@ -17,8 +20,10 @@ tl::expected<QuicrEndpoint, NetworkError> QuicrEndpoint::create() {
     const int domain = AF_INET;
     int socket_fd = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
     if(socket_fd < 0) {
+        spdlog::error("Failed to create socket: {}", strerror(errno));
         return tl::make_unexpected(NetworkError::from_errno(errno));
     }
+
     if(fcntl(socket_fd, F_SETFL, fcntl(socket_fd, F_GETFL, 0) | O_NONBLOCK, 1) == -1) {
         spdlog::error("Failed to set non-blocking mode: {}", strerror(errno));
         return tl::make_unexpected(NetworkError::from_errno(errno));
@@ -35,6 +40,7 @@ tl::expected<void, NetworkError> QuicrEndpoint::bind(int port) {
     addr.sin_addr.s_addr = INADDR_ANY;
 
     if(::bind(m_socket_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        spdlog::error("Failed to bind socket: {}", strerror(errno));
         return tl::make_unexpected(NetworkError::from_errno(errno));
     }
 
@@ -50,22 +56,21 @@ tl::expected<void, NetworkError> QuicrEndpoint::bind(int port) {
  * Creates new connection from current socket to the address.
  */
 tl::expected<QuicrConnection*, NetworkError> QuicrEndpoint::connect(Address address) {
-    uint64_t self_id = generate_id();
-    uint64_t their_id = generate_id();
-
-    auto stream = UdpStream(m_socket_fd, address);
-    auto inserted_r = m_connections.emplace(self_id, std::make_unique<QuicrConnection>(self_id, their_id, address, this));
+    auto connection = std::make_shared<QuicrConnection>(0, 0, address, this);
+    auto inserted_r = m_connections.emplace(connection->self_id(), connection);
 
     if(!inserted_r.second) {
         return nullptr;
     }
 
-    inserted_r.first->second->send_hello();
+    inserted_r.first->second->send_initial_hello();
 
     return inserted_r.first->second.get();
 }
 
 void QuicrEndpoint::process_datagram(std::span<std::byte> datagram, Address from) {
+    ZoneScopedN("Process Datagram");
+
     // parse first byte as packet type
     if(datagram.size() < 1) {
         return;
@@ -73,24 +78,17 @@ void QuicrEndpoint::process_datagram(std::span<std::byte> datagram, Address from
 
     size_t off = 0;
 
-    auto destination_id_v = VarInt::decode(datagram.subspan(off));
-    if (!destination_id_v) return;
-    uint64_t destination_id = destination_id_v->value;
-    off += destination_id_v->bytes;
+    QuicrPacket packet = QuicrDecoder::decode_packet_header(datagram, off);
 
-    auto source_id_v = VarInt::decode(datagram.subspan(off));
-    if (!source_id_v) return;
-    uint64_t source_id = source_id_v->value;
-    off += source_id_v->bytes;
-
-    auto connection = m_connections.find(destination_id);
+    auto connection = m_connections.find(packet.destination_id);
 
     if(connection == m_connections.end()) {
-        size_t self_id = generate_id();
-
-        auto emplaced = m_connections.emplace(self_id, std::make_unique<QuicrConnection>(self_id, source_id, from, this));
+        auto conn = std::make_shared<QuicrConnection>(0, packet.local_id, from, this);
+        auto emplaced = m_connections.emplace(conn->self_id(), conn);
+        emplaced.first->second->set_peer_id(packet.local_id);
 
         emplaced.first->second->process_datagram(datagram);
+        m_connections.emplace(packet.destination_id, emplaced.first->second);
         return;
     }
 
@@ -100,10 +98,7 @@ void QuicrEndpoint::process_datagram(std::span<std::byte> datagram, Address from
 
     if(prev_state != QuicrConnectionState::Established && connection->second->state() == QuicrConnectionState::Established) {
         if(m_new_connection_handler != nullptr) {
-            spdlog::info("Established connection with {}", connection->second->address().to_string());
             m_new_connection_handler->on_new_connection(connection->second.get());
-        } else {
-            spdlog::error("Established connection with {} but no listener", connection->second->address().to_string());
         }
     }
 }
@@ -144,9 +139,9 @@ tl::expected<size_t, NetworkError> QuicrEndpoint::read_from_into(std::span<std::
     return read_len;
 }
 
-
 void QuicrEndpoint::poll() {
     while(1) {
+        ZoneScopedN("Reading");
         Address address({}, 0);
         auto r = read_from_into(std::span(m_inbound_buffer), &address);
         if(!r || *r == 0) {
@@ -159,7 +154,17 @@ void QuicrEndpoint::poll() {
     auto now = std::chrono::steady_clock::now();
 
     for(auto& connection : m_connections) {
-        connection.second->on_tick(now);
+        ZoneScopedN("Per Connection");
+        // connection.second->on_tick(now);
+
+        while(connection.second->has_next_datagram()) {
+            auto datagram = connection.second->pop_datagram();
+            auto send_r = send_to(datagram, connection.second->address());
+            if(!send_r) {
+                spdlog::error("Failed to send datagram: {}", send_r.error().message());
+                break;
+            }
+        }
     }
 }
 

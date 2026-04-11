@@ -27,7 +27,21 @@ private:
 
     std::vector<std::function<tl::expected<void, NetworkError>(std::span<std::byte>)>> m_handlers;
 
+    std::unique_ptr<quicr::QuicrEndpoint> create_endpoint() {
+        auto endpoint_r = quicr::QuicrEndpoint::create();
+        if(!endpoint_r) {
+            spdlog::error("Failed to create QuicrEndpoint: {}", endpoint_r.error().message());
+            throw std::runtime_error("Failed to create QuicrEndpoint");
+        }
+
+        return std::make_unique<quicr::QuicrEndpoint>(std::move(endpoint_r.value()));
+    }
+
 public:
+    const bool is_connected() const {
+        return m_quicr_connection->state() == quicr::QuicrConnectionState::Established;
+    }
+
     MessageHandler(MessageHandler&& m)
         // : m_server_messenger{std::move(m.m_server_messenger)},
       :
@@ -38,7 +52,7 @@ public:
     }
 
     MessageHandler(Address address) :
-        m_quicr_endpoint(std::make_unique<quicr::QuicrEndpoint>(quicr::QuicrEndpoint::create().value())),
+        m_quicr_endpoint(create_endpoint()),
         m_quicr_connection(m_quicr_endpoint->connect(address).value()),
         m_handlers(100) {
         spdlog::info("Connected to server at {}", address.to_string());
@@ -59,7 +73,7 @@ public:
             T result = {};
 
             result.ParseFromArray(data.data(), data.size());
-            spdlog::info("Deserialized message [{}]: {}", (int32_t)Message<T>::value, result.DebugString());
+            // spdlog::info("Deserialized message [{}]: {}", (int32_t)Message<T>::value, result.DebugString());
 
             handler(&result);
             // if(m_server_messenger.peek().has_value() && m_server_messenger.peek().value() == Message<T>::value) {
@@ -81,6 +95,7 @@ public:
         while(true) {
             std::vector<std::byte> buffer(64 * 1024);
             auto read_r = m_quicr_connection->read_into(buffer);
+
             if(!read_r) {
                 spdlog::error("Failed to read from QUICr stream: {}", read_r.error().message());
                 break;
@@ -91,6 +106,11 @@ public:
             }
 
             uint32_t type = reinterpret_cast<uint32_t*>(buffer.data())[0];
+            if(m_handlers[type] == nullptr) {
+                spdlog::warn("Unknown message type: {}", type);
+                throw std::runtime_error("Unknown message type: {}");
+                break;
+            }
 
             auto handler_r = m_handlers[type](std::span<std::byte>(buffer.data(), *read_r).subspan(sizeof(uint32_t)));
             if(!handler_r) {
@@ -132,7 +152,11 @@ public:
         memcpy(bytes.data(), &type, sizeof(type));
         memcpy(bytes.data() + sizeof(uint32_t), payload_bytes.data(), payload_bytes.size());
 
-        m_quicr_connection->push_stream_frame(bytes, true);
+        auto send_r = m_quicr_connection->send_message(bytes, false);
+        if(!send_r) {
+            spdlog::error("Failed to send message: {}", send_r.error().message());
+            return 0;
+        }
         return payload_bytes.size();
     }
 };

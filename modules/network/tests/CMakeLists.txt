@@ -9,6 +9,7 @@ set(LIBS
 file(GLOB FILES
     ./*.cpp
     ./quicr/QuicrBasicTests.cpp
+    ./quicr/QuicrEndpointTests.cpp
 )
 
 add_library(${PROJECT_NAME}_sources OBJECT ${FILES})
@@ -20,11 +21,27 @@ target_link_libraries(${PROJECT_NAME}_sources
 
 add_executable(${PROJECT_NAME})
 add_executable(QuicrOverloadTest ./quicr/QuicrOverloadTests.cpp)
+add_executable(QuicrBenchmarks ./quicr/QuicrBenchmarks.cpp)
+
+add_definitions(-DTRACY_ON_DEMAND=1)
+
+target_link_libraries(QuicrBenchmarks
+    PRIVATE
+    ${LIBS}
+    ${PROJECT_NAME}_sources
+    Tracy::TracyClient
+    TracyClient
+    Catch2::Catch2WithMain
+    tl::expected
+    EnTT::EnTT
+)
 
 target_link_libraries(QuicrOverloadTest
     PRIVATE
     ${LIBS}
     ${PROJECT_NAME}_sources
+    Tracy::TracyClient
+    TracyClient
     Catch2::Catch2WithMain
     tl::expected
     EnTT::EnTT

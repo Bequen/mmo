@@ -23,7 +23,6 @@ tl::expected<QuicrConnectionListener, NetworkError> QuicrConnectionListener::lis
 
 QuicrConnection* QuicrConnectionListener::listen() {
     if(m_listened_connections.size() > 0) {
-        spdlog::info("Listening");
         QuicrConnection* connection = m_listened_connections.front();
         m_listened_connections.pop_front();
 

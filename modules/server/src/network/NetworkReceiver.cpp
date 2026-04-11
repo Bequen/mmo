@@ -84,19 +84,6 @@ void NetworkReceiver::listen() {
     listen_quicr();
 }
 
-void NetworkReceiver::process_frame(uint32_t session_id, const Frame& frame) {
-    switch(frame.frame_type()) {
-        case quicr::FrameType::StreamBase:
-            m_inbound_queue->push(new InboundMessage(session_id, frame.buffer()));
-            break;
-        case quicr::Hello:
-            spdlog::info("Received hello");
-            break;
-        default:
-            spdlog::warn("Unknown frame type: {}", (uint32_t)frame.frame_type());
-    }
-}
-
 void NetworkReceiver::process_streams() {
     m_quicr_endpoint->poll();
 
@@ -109,12 +96,10 @@ void NetworkReceiver::process_streams() {
         }
 
         if(*read_r == 0) {
-            spdlog::info("Empty");
             continue;
         }
 
         auto data = std::vector<std::byte>(buffer.begin(), buffer.begin() + *read_r);
-        spdlog::info("Read {} bytes from QUICr stream", *read_r);
         m_inbound_queue->push(new InboundMessage(client->session_id, data));
 
         // size_t r = ByteBufferStreamReader::read(&client->tcp_stream, &client->inbound_buffer);

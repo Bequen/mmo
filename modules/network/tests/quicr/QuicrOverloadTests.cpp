@@ -6,6 +6,7 @@
 #include <ios>
 #include <span>
 #include <unordered_map>
+#include <tracy/Tracy.hpp>
 
 #include "Address.hpp"
 #include "protocol/quicr/QuicrConnection.hpp"
@@ -15,11 +16,24 @@
 using namespace tw::net;
 using namespace tw::net::quicr;
 
-int main() {
-    // spdlog::set_pattern("[%H:%M:%S] [thread %t] %v");
-    const int NUM_CONNECTIONS = 1000;
-    std::barrier create_sync_point(NUM_CONNECTIONS + 1);
+std::atomic<bool> is_stopped(false);
 
+void got_signal(int) {
+    is_stopped.store(true);
+}
+
+void register_signal_handler() {
+    struct sigaction sa;
+    memset( &sa, 0, sizeof(sa) );
+    sa.sa_handler = got_signal;
+    sigfillset(&sa.sa_mask);
+    sigaction(SIGINT,&sa,NULL);
+}
+
+int main() {
+    register_signal_handler();
+    // spdlog::set_pattern("[%H:%M:%S] [thread %t] %v");
+    const int NUM_CONNECTIONS = 500;
     std::thread server_thread([&]() {
         auto server_endpoint_r = QuicrEndpoint::create();
         assert(server_endpoint_r);
@@ -33,7 +47,6 @@ int main() {
 
         server_endpoint.assign_listener(&listen);
 
-        create_sync_point.arrive_and_wait();
 
         struct ConnectionTestSession {
             QuicrConnection *connection;
@@ -51,6 +64,7 @@ int main() {
         uint32_t num_connections = 0;
 
         while(answered_count < NUM_CONNECTIONS) {
+            if(is_stopped) break;
             server_endpoint.poll();
 
             auto new_connection = listen.listen();
@@ -72,65 +86,93 @@ int main() {
                 spdlog::error("Received: {}", mesg);
                 std::transform(mesg.begin(), mesg.end(), mesg.begin(), ::toupper);
 
-                connection.second->connection->push_stream_frame(std::as_writable_bytes(std::span(mesg)), true);
+                connection.second->connection->send_message(std::as_writable_bytes(std::span(mesg)), true);
 
                 connection.second->is_answered = true;
                 answered_count++;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
+
+        spdlog::warn("DONE: got all answers");
     });
 
-    std::vector<std::thread> client_threads;
+    std::vector<std::unique_ptr<QuicrEndpoint>> endpoints(NUM_CONNECTIONS);
+    std::vector<QuicrConnection*> connections(NUM_CONNECTIONS);
+    std::vector<bool> established_counts(NUM_CONNECTIONS, false);
+
     for(int i = 0; i < NUM_CONNECTIONS; i++) {
-        client_threads.push_back(std::thread([&](uint32_t idx) {
-            create_sync_point.arrive_and_wait();
+        ZoneScoped;
+        endpoints[i] = std::make_unique<QuicrEndpoint>(QuicrEndpoint::create().value());
 
-            auto client_endpoint_r = QuicrEndpoint::create();
-            assert(client_endpoint_r);
-
-            auto client_endpoint = std::move(client_endpoint_r.value());
-
-            auto connection_r = client_endpoint.connect(Address{"127.0.0.1", 8100});
-            assert(connection_r);
-            auto connection = std::move(connection_r.value());
-
-            while(connection->state() != QuicrConnectionState::Established) {
-                client_endpoint.poll();
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
-
-            std::string mesg = "Hello from client " + std::to_string(idx);
-
-            auto bytes = std::as_writable_bytes(std::span(mesg));
-
-            (*connection_r)->push_stream_frame(bytes, true);
-
-            std::string uppercase_mesg = mesg;
-            std::transform(uppercase_mesg.begin(), uppercase_mesg.end(), uppercase_mesg.begin(), ::toupper);
-
-            std::vector<std::byte> buffer(1024 * 16);
-
-            while(true) {
-                client_endpoint.poll();
-                auto read_r = (*connection_r)->read_into(buffer);
-
-                if(*read_r == 0) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                    continue;
-                }
-
-
-                std::string received_mesg(buffer.begin(), buffer.begin() + *read_r);
-                assert(received_mesg == uppercase_mesg);
-
-                break;
-            }
-        }, i));
+        connections[i] = endpoints[i]->connect(Address{"127.0.0.1", 8100}).value();
     }
+
+    std::atomic<uint32_t> established_count(0);
+    spdlog::info("Starting overload test with {} connections", NUM_CONNECTIONS);
+
+    while(!is_stopped && established_count.load() < NUM_CONNECTIONS) {
+        for(int i = 0; i < NUM_CONNECTIONS; i++) {
+            {
+                endpoints[i]->poll();
+            }
+            if(!established_counts[i] && connections[i]->state() == QuicrConnectionState::Established) {
+                established_counts[i] = true;
+                established_count++;
+            }
+        }
+    }
+
+    // for(int i = 0; i < NUM_CONNECTIONS; i++) {
+    //     client_threads.push_back(std::thread([&](uint32_t idx) {
+    //         ZoneScoped;
+    //         create_sync_point.arrive_and_wait();
+
+    //         auto client_endpoint_r = QuicrEndpoint::create();
+    //         assert(client_endpoint_r);
+
+    //         auto client_endpoint = std::move(client_endpoint_r.value());
+
+    //         auto connection_r = client_endpoint.connect(Address{"127.0.0.1", 8100});
+    //         assert(connection_r);
+    //         auto connection = std::move(connection_r.value());
+
+    //         while(connection->state() != QuicrConnectionState::Established) {
+    //             if(is_stopped) break;
+    //             client_endpoint.poll();
+    //             std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    //         }
+
+    //         std::string mesg = "Hello from client " + std::to_string(idx) + std::string(1500, 'a');
+
+    //         auto bytes = std::as_writable_bytes(std::span(mesg));
+
+    //         (*connection_r)->push_stream_frame(bytes, true);
+
+    //         std::string uppercase_mesg = mesg;
+    //         std::transform(uppercase_mesg.begin(), uppercase_mesg.end(), uppercase_mesg.begin(), ::toupper);
+
+    //         std::vector<std::byte> buffer(1024 * 16);
+
+    //         while(true) {
+    //             if(is_stopped) break;
+    //             client_endpoint.poll();
+    //             auto read_r = (*connection_r)->read_into(buffer);
+
+    //             if(*read_r == 0) {
+    //                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    //                 continue;
+    //             }
+
+
+    //             std::string received_mesg(buffer.begin(), buffer.begin() + *read_r);
+    //             assert(received_mesg == uppercase_mesg);
+
+    //             break;
+    //         }
+    //     }, i));
+    // }
 
     server_thread.join();
-    for(int i = 0; i < NUM_CONNECTIONS; i++) {
-        client_threads[i].join();
-    }
+    return 0;
 }

@@ -199,6 +199,7 @@ void ClientWorldController::update(double delta_time) {
     ImGui::Begin("Player Controller");
 
     ImGui::Text("Player entity ID: %d", (uint32_t)m_player_entity);
+    ImGui::Text("Player count: %ld", m_entity_mapping.size());
     for(auto mapping : m_entity_mapping) {
         ImGui::Text("%d -> %d", (uint32_t)mapping.first, mapping.second);
     }

@@ -108,7 +108,6 @@ void WorldServer::run() {
 
     m_message_dispatcher->set_handler<mmo::PlayerMoveMessage>(
         [&](PlayerClientId clientId, mmo::PlayerMoveMessage mesg) {
-            spdlog::info("Handling move messgae");
             player_update_handler(clientId, std::move(mesg));
         });
 

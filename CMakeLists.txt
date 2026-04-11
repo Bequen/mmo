@@ -106,6 +106,7 @@ add_subdirectory(./modules/client/)
 add_subdirectory(./modules/mock_client/)
 add_subdirectory(./modules/gui/)
 add_subdirectory(./modules/server_gui/)
+add_subdirectory(./modules/serialization/)
 
 
 file(GLOB FILES

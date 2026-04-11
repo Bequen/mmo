@@ -68,9 +68,11 @@ void EntityManagerGui::draw() {
     ImGui::Begin("Transforms");
 
     ImGui::BeginChild("Entities", ImVec2(0, 260), ImGuiChildFlags_Border);
+
     ImGui::SeparatorText("Entities");
 
     auto view = m_world->registry().view<const WorldEntity>();
+
     view.each([&](const auto entity, const WorldEntity& info) {
             ImGui::PushID((uint32_t)info.entity_id);
             if(ImGui::Selectable(info.name.c_str(), m_selected_entity == info.entity_id)) {

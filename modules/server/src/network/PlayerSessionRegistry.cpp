@@ -10,8 +10,6 @@ SessionId PlayerSessionRegistry::generate_session_id() {
 }
 
 SessionId PlayerSessionRegistry::register_session(quicr::QuicrConnection* quicr_connection) {
-    spdlog::info("Registering new session");
-
     auto session = new PlayerSession(quicr_connection->self_id(), quicr_connection);
     m_session_vec.emplace_back(session);
 

@@ -40,6 +40,10 @@ public:
         return data.size();
     }
 
+    constexpr size_t length() const {
+        return writeOffset;
+    }
+
     size_t remaining() const {
         return buffer.size() - writeOffset;
     }

@@ -55,7 +55,7 @@ public:
         join_request.set_username(name);
         join_request.set_password("test");
 
-        m_handler.send(join_request);
+        // m_handler.send(join_request);
     }
 
     void run() {
@@ -63,7 +63,10 @@ public:
         //     // m_handler.update();
         //     // std::this_thread::sleep_for(std::chrono::milliseconds(100));
         // }
-
+        while(!m_handler.is_connected()) {
+            m_handler.update();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
         mmo::PlayerMoveMessage player_move_mesg;
 
         float value;
@@ -87,22 +90,26 @@ public:
             player_input->set_y(0);
             player_input->set_z(m_velocity.z);
             player_move_mesg.set_allocated_input(player_input);
-            spdlog::error("SENDINGINGINSGIGNSG");
             auto r = m_handler.send(player_move_mesg);
         }
     }
 };
 
 int main() {
-    const int NUM_CLIENTS = 100;
+    const int NUM_CLIENTS = 300;
     tw::net::Address address = {"127.0.0.1", 8101};
 
     std::vector<std::thread> threads;
     for(uint32_t i = 0; i < NUM_CLIENTS; i++) {
         threads.push_back(std::thread([address, i]() {
-            MockClient client(address, "Player" + std::to_string(i));
-            client.run();
+            try {
+                MockClient client(address, "Player" + std::to_string(i));
+                client.run();
+            } catch (const std::exception& e) {
+                spdlog::error("Client {} failed: {}", i, e.what());
+            }
         }));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     for(uint32_t i = 0; i < NUM_CLIENTS; i++) {

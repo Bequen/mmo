@@ -37,7 +37,7 @@ tl::expected<size_t, NetworkError> QuicrConnection::write_datagram(std::span<std
 }
 
 void QuicrConnection::send_initial_hello() {
-    m_reliability_unit->push_reliable_frame_to_send(Clock::now(), QuicrFrame::make_hello());
+    m_reliability_unit->push_reliable_frame(Clock::now(), QuicrFrame::make_hello());
     m_state = QuicrConnectionState::SentHello;
 }
 
@@ -49,7 +49,6 @@ void QuicrConnection::send_hello() {
         spdlog::warn("Attempted to send Hello in state {}, expected Closed", (int)m_state);
         return;
     }
-    spdlog::info("Sending hello with {} to {}", self_id(), peer_id());
 
     VarInt(peer_id()).encode(dgram);
     VarInt(self_id()).encode(dgram);
@@ -96,30 +95,31 @@ bool QuicrConnection::process_hello(const QuicrPacket& packet, const QuicrFrame&
     if(m_state == QuicrConnectionState::Closed) {
         m_peer_id = packet.local_id;
         m_state = QuicrConnectionState::ReceivedHello;
+        m_reliability_unit->push_reliable_frame(Clock::now(), QuicrFrame::make_hello());
     } else if(m_state == QuicrConnectionState::SentHello) {
         m_peer_id = packet.local_id;
         m_state = QuicrConnectionState::Established;
+        m_reliability_unit->push_reliable_frame(Clock::now(), QuicrFrame::make_hello_fin());
     }
-
-    m_reliability_unit->push_reliable_frame_to_send(Clock::now(), QuicrFrame::make_hello());
-
-    return true;
-    // m_peer_id = peer_connection_id;
-
-    // send_hello_ack_frame();
 
     return true;
 }
 
+bool QuicrConnection::process_hello_fin(const QuicrPacket& packet, const QuicrFrame& frame) {
+    if(m_state == QuicrConnectionState::ReceivedHello) {
+        m_state = QuicrConnectionState::Established;
+        return true;
+    }
+
+    return false;
+}
 
 void QuicrConnection::send_hello_ack_frame() {
     std::vector<std::byte> dgram;
 
-    spdlog::info("Acknowledge");
-
     VarInt(peer_id()).encode(dgram);
     VarInt(self_id()).encode(dgram);
-    VarInt(FrameType::HelloAck).encode(dgram);
+    VarInt(FrameType::HelloFin).encode(dgram);
     VarInt(PROTOCOL_VERSION).encode(dgram);
     VarInt(self_id()).encode(dgram);
     VarInt(peer_id()).encode(dgram); // acknoledge it's ID
@@ -145,8 +145,6 @@ bool QuicrConnection::process_hello_ack_frame(std::span<const std::byte> dgram, 
     if (!echoed_connection_id_v) return false;
     uint64_t echoed_connection_id = echoed_connection_id_v->value;
     off += echoed_connection_id_v->bytes;
-
-    spdlog::info("Processing ack from {} with echoed {}", peer_connection_id, echoed_connection_id);
 
     if(m_state != QuicrConnectionState::SentHello) {
         spdlog::warn("Received unexpected HelloAck in state {}, expected SentHello", (int)m_state);
@@ -182,7 +180,6 @@ void QuicrConnection::send_handshake_done() {
     VarInt(PROTOCOL_VERSION).encode(dgram);
     VarInt(self_id()).encode(dgram);
     VarInt(peer_id()).encode(dgram);
-    spdlog::info("Received handshake done");
 
     auto r = write_datagram(dgram);
     if(!r) {
@@ -222,26 +219,42 @@ bool QuicrConnection::process_handshake_done(std::span<const std::byte> dgram, s
 }
 
 
-bool QuicrConnection::push_stream_frame(std::span<std::byte> data, bool is_reliable) {
-    std::vector<std::byte> dgram;
-
-    VarInt(peer_id()).encode(dgram);
-    VarInt(self_id()).encode(dgram);
-    VarInt(FrameType::StreamBase).encode(dgram);
-    VarInt(data.size()).encode(dgram);
-
-    dgram.insert(dgram.end(), data.begin(), data.end());
-
-    auto r = write_datagram(dgram);
-    if (!r) {
-        spdlog::error("Failed to send stream frame: {}", r.error().message());
-        return false;
+tl::expected<void, QuicrError>
+QuicrConnection::send_message(std::span<std::byte> data, bool is_reliable) {
+    if(state() == QuicrConnectionState::Closed) {
+        return tl::make_unexpected(QuicrError(QuicrErrorType::ConnectionClosed));
     }
 
-    return true;
+    m_outbound_messages.emplace_back(data.begin(), data.end());
+
+    return {};
+
+    // std::vector<std::byte> dgram;
+
+    // VarInt(peer_id()).encode(dgram);
+    // VarInt(self_id()).encode(dgram);
+    // VarInt(FrameType::StreamBase).encode(dgram);
+    // VarInt(data.size()).encode(dgram);
+
+    // dgram.insert(dgram.end(), data.begin(), data.end());
+
+    // auto r = write_datagram(dgram);
+    // if (!r) {
+    //     spdlog::error("Failed to send stream frame: {}", r.error().message());
+    //     return false;
+    // }
+
+    // return true;
 }
 
 bool QuicrConnection::process_stream_frame(uint64_t type, std::span<const std::byte> dgram, size_t& offset) {
+    uint32_t length = (uint32_t)dgram.size();
+
+    m_messages.push_back(std::vector<std::byte>(dgram.begin() + offset, dgram.begin() + offset + length));
+    offset += length;
+
+    return true;
+
     // bool has_off = (type & STREAM_FLAG_OFF) != 0;
     // bool has_len = (type & STREAM_FLAG_LEN) != 0;
 
@@ -251,21 +264,21 @@ bool QuicrConnection::process_stream_frame(uint64_t type, std::span<const std::b
     //     offset += off_val->bytes;
     // }
 
-    size_t payload_len;
-    // if (has_len) {
-        auto len_val = VarInt::decode(dgram.subspan(offset));
-        if (!len_val) return false;
-        offset += len_val->bytes;
-        payload_len = len_val->value;
+    // size_t payload_len;
+    // // if (has_len) {
+    //     auto len_val = VarInt::decode(dgram.subspan(offset));
+    //     if (!len_val) return false;
+    //     offset += len_val->bytes;
+    //     payload_len = len_val->value;
 
-        if (offset + payload_len > dgram.size()) return false;
-    // } else {
-    //     payload_len = dgram.size() - offset;
-    // }
+    //     if (offset + payload_len > dgram.size()) return false;
+    // // } else {
+    // //     payload_len = dgram.size() - offset;
+    // // }
 
-    auto payload = dgram.subspan(offset, payload_len);
-    m_messages.push_back(std::vector<std::byte>(payload.begin(), payload.end()));
-    offset += payload_len;
+    // auto payload = dgram.subspan(offset, payload_len);
+    // m_messages.push_back(std::vector<std::byte>(payload.begin(), payload.end()));
+    // offset += payload_len;
 
     return true;
 }
@@ -303,40 +316,40 @@ tl::expected<void, NetworkError> QuicrConnection::send_keep_alive() {
 bool QuicrConnection::process_ack_frame(const QuicrPacket& packet, const QuicrFrame& frame) {
     ByteBufferReader reader(std::span(frame.content));
 
-    uint32_t num_acks;
-    reader.pop_bytes(&num_acks);
+    uint32_t num_acks = frame.content.size() / sizeof(uint32_t);
+    // reader.pop_bytes(&num_acks);
 
     for(int i = 0; i < num_acks; i++) {
         uint32_t acked_packet = 0;
         reader.pop_bytes(&acked_packet);
 
-        m_reliability_unit->push_ack_received(acked_packet);
+        m_reliability_unit->on_ack_received(acked_packet);
     }
 
     return true;
 }
 
 void QuicrConnection::process_datagram(std::span<std::byte> dgram) {
-    size_t offset = 0;
-
     m_last_heartbeat_received = Clock::now();
 
     QuicrPacket packet = QuicrDecoder::decode_packet(dgram);
 
-    // decryption based on packet type
-    //
+    if(packet.require_ack) {
+        m_reliability_unit->push_ack(packet.packet_number.value());
+    }
 
     for(auto& frame : packet.frames) {
-        if(packet.packet_number.has_value() && frame.is_reliable) {
-            m_reliability_unit->push_ack_received(packet.packet_number.value());
-        }
-
         switch(frame.type) {
             case FrameType::StreamBase:
+            case FrameType::StreamUnreliable: {
+                size_t offset = 0;
                 process_stream_frame(frame.type, frame.content, offset);
-                break;
+            } break;
             case FrameType::Hello:
                 process_hello(packet, frame);
+                break;
+            case FrameType::HelloFin:
+                process_hello_fin(packet, frame);
                 break;
             case FrameType::Ack:
                 process_ack_frame(packet, frame);
@@ -447,10 +460,6 @@ void QuicrConnection::process_datagram(std::span<std::byte> dgram) {
 
 
 tl::expected<size_t, NetworkError> QuicrConnection::read_into(std::span<std::byte> target) {
-    // if (m_messages.empty()) {
-    //     drain_socket();
-    // }
-
     if(m_messages.empty()) {
         return 0;
     }
@@ -476,15 +485,12 @@ void QuicrConnection::on_tick(std::chrono::steady_clock::time_point now) {
     //     auto keep_alive_r = send_keep_alive();
     // }
 
+    if(m_last_heartbeat_received < now - std::chrono::milliseconds(TW_NET_HEARTBEAT_INTERVAL_IN_MILLIS * 2)) {
 
+    }
 }
 
 bool QuicrConnection::has_next_datagram() {
-    if(m_state == QuicrConnectionState::Closed) {
-        // wants to send hello
-        return false;
-    }
-
     if(m_reliability_unit->has_reliable_frames_to_resend()) {
         return true;
     }
@@ -493,79 +499,44 @@ bool QuicrConnection::has_next_datagram() {
         return true;
     }
 
-    return !m_messages.empty();
+    if(!m_outbound_messages.empty()) {
+        return true;
+    }
+
+    return false;
 }
 
 std::vector<std::byte> QuicrConnection::pop_datagram() {
-    std::vector<std::byte> datagram(1200);
 
-    RingByteBuffer writer(datagram, false);
+    std::vector<std::byte> datagram(64*1024);
 
     QuicrPacketType type = QuicrPacketType::Initial;
-    // if(m_state == QuicrConnectionState::Closed || m_state == QuicrConnectionState::SentHello) {
-    //     type = QuicrPacketType::Initial;
-    // }
-    // } else if(m_state == QuicrConnectionState::ReceivedHello) {
-    //     type = QuicrPacketType::Handshake;
-    // } else {
-    //     type = QuicrPacketType::Established;
-    // }
-
-    writer.write_bytes((uint8_t*)&type);
-
-    writer.write_bytes(&m_peer_id);
-    writer.write_bytes(&m_self_id);
-
-    bool require_ack = true; // TODO: When does it need the ACK?
-    writer.write_bytes(&require_ack);
-
+    size_t offset = 0;
     uint32_t packet_number = m_packet_number++;
-    writer.write_bytes(&packet_number);
+    QuicrPacketEncoder encoder(datagram, offset, type, packet_number, *this);
 
-    uint32_t length_offset = writer.remaining_read();
-    uint32_t length = 0;
-    writer.write_bytes(&length);
-
-    // if(m_state == QuicrConnectionState::Closed) {
-    //     uint8_t frame_type = FrameType::Hello;
-    //     writer.write_bytes(&frame_type);
-    //     m_state = QuicrConnectionState::SentHello;
-
-    //     auto frame = QuicrFrame::make_hello();
-    //     m_reliability_unit->push_reliable_frame_to_send(frame);
-    // }
 
     // encode ACK frame
     {
         auto acks = m_reliability_unit->pop_acks_to_send();
 
-        if(!acks.empty()) {
-            uint8_t ack_frame_type = FrameType::Ack;
-            uint8_t acks_count = acks.size();
-            writer.write_bytes(&ack_frame_type);
-            writer.write_bytes(&acks_count);
-
-            for(auto& ack : acks) {
-                writer.write_bytes(&ack);
-            }
-        }
+        encoder.encode_ack_frame(acks);
     }
 
     // re-send frames
     {
-        auto frames_to_resend = m_reliability_unit->pop_frames_to_resend();
+        // pop already encoded frames
+        auto frames_to_resend = m_reliability_unit->pop_frames_to_resend(packet_number);
         for(auto& frame : frames_to_resend) {
-            writer.write_bytes((uint8_t*)&frame.type);
-            uint8_t length = frame.content.size();
-            writer.write_bytes((uint8_t*)&length);
-            writer.write_bytes(frame.content);
+            frame.frame_number = packet_number;
+            encoder.encode_frame(frame);
 
-            m_reliability_unit->push_reliable_frame_to_send(Clock::now() + std::chrono::milliseconds(TW_NET_HELLO_RETRY_INTERVAL_IN_MILLIS), std::move(frame));
+            // auto deadline = Clock::now() + std::chrono::milliseconds(TW_NET_HELLO_RETRY_INTERVAL_IN_MILLIS);
+            // m_reliability_unit->push_reliable_frame_to_send(deadline, std::move(frame));
         }
     }
 
-    // send new frames
-    while(writer.remaining_write() > 0) {
+    while(true) {
         if(m_outbound_messages.empty()) {
             break;
         }
@@ -573,16 +544,12 @@ std::vector<std::byte> QuicrConnection::pop_datagram() {
         auto outbound = m_outbound_messages.front();
         m_outbound_messages.pop_front();
 
-        uint8_t frame_type = FrameType::StreamBase;
-        writer.write_bytes((uint8_t*)&frame_type);
-        uint8_t length = outbound.size();
-        writer.write_bytes((uint8_t*)&length);
-        writer.write_bytes(outbound);
+        encoder.encode_stream_frame(outbound, true);
     }
 
     m_last_heartbeat_sent = Clock::now();
 
-    return std::vector<std::byte>(datagram.begin(), datagram.begin() + writer.remaining_read());
+    return std::vector<std::byte>(datagram.begin(), datagram.begin() + encoder.size());
 }
 
 

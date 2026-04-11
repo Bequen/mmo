@@ -95,8 +95,6 @@ public:
         const uint32_t magic = 0xDEADBEEF;
         const uint32_t frame_type = quicr::FrameType::StreamBase;
 
-        spdlog::info("Encoding length: {}", length);
-
         std::memcpy(message.data(), &magic, sizeof(magic));
         std::memcpy(message.data() + sizeof(magic), &frame_type, sizeof(frame_type));
         std::memcpy(message.data() + sizeof(frame_type) + sizeof(magic), &length, sizeof(length));

@@ -5,6 +5,7 @@
 #include <utility>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -30,6 +31,9 @@ public:
             return tl::make_unexpected(NetworkResult::from_errno(errno));
         }
 
+        int flag = 1;
+        setsockopt(m_socket_fd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(flag));
+
         return {};
     }
 
@@ -38,7 +42,16 @@ public:
         m_address(address)
     { }
 
-    TcpStream& operator=(TcpStream&& other) = delete;
+    void move_from(TcpStream&& other) {
+        m_socket_fd = std::exchange(other.m_socket_fd, -1);
+        m_address = other.m_address;
+    }
+
+    TcpStream& operator=(TcpStream&& other) {
+        move_from(std::move(other));
+        return *this;
+    }
+
     TcpStream& operator=(const TcpStream& other) = delete;
 
     TcpStream(TcpStream&& other) :

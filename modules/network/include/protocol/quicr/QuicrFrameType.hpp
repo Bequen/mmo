@@ -15,9 +15,10 @@ enum FrameType : uint8_t {
 
     // STREAM is 0x08..0x0f (low 3 bits are flags)
     StreamBase = 0x08, // interpret specially
+    StreamUnreliable = 0x09,
 
     Hello = 0x10,
-    HelloAck = 0x11,
+    HelloFin = 0x11,
     HandshakeDone = 0x12
 };
 

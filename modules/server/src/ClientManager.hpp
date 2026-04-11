@@ -128,8 +128,6 @@ private:
                 ));
                 m_joined_buffer.push_back(client_id);
 
-                spdlog::info("Client tries to login");
-
                 return true;
             }
 

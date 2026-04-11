@@ -17,18 +17,19 @@ public:
 
     size_t peek_bytes(void* dst, size_t size, size_t offset = 0) {
         if(remaining() - offset < size) {
+            spdlog::warn("Could not peek entire frame, remaining: {}/{}", remaining() - offset, size);
             return 0;
         }
 
-        size_t cursor = (readOffset + offset) % buffer.size();
+        size_t cursor = readOffset + offset;
 
-        if(cursor + size <= buffer.size()) {
-            std::memcpy(dst, buffer.data() + cursor, size);
-        } else {
-            size_t firstPart = buffer.size() - cursor;
-            std::memcpy(dst, buffer.data() + cursor, firstPart);
-            std::memcpy((std::byte*)dst + firstPart, buffer.data(), size - firstPart);
-        }
+        // if(cursor + size <= buffer.size()) {
+        std::memcpy(dst, buffer.data() + cursor, size);
+        // } else {
+        //     size_t firstPart = buffer.size() - cursor;
+        //     std::memcpy(dst, buffer.data() + cursor, firstPart);
+        //     std::memcpy((std::byte*)dst + firstPart, buffer.data(), size - firstPart);
+        // }
 
         return size;
     }
@@ -41,6 +42,7 @@ public:
     size_t pop_bytes(void* dst, size_t size) {
         size_t peeked = peek_bytes(dst, size);
         if(peeked < size) {
+            spdlog::warn("Could not read entire frame, peeked only: {}/{}", peeked, size);
             return 0;
         }
 
@@ -50,6 +52,10 @@ public:
 
     size_t pop_bytes(std::span<std::byte> dst) {
         return pop_bytes(dst.data(), dst.size());
+    }
+
+    size_t position() const {
+        return readOffset;
     }
 
     size_t remaining() const {

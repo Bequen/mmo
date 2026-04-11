@@ -1,5 +1,6 @@
 #include "protocol/quicr/QuicrReliability.hpp"
 #include "bytebuffer/ByteBuffer.hpp"
+#include "metrics/NetworkStatsLogger.hpp"
 #include "protocol/quicr/QuicrConnection.hpp"
 #include <chrono>
 #include <immintrin.h>
@@ -98,45 +99,85 @@ namespace tw::net::quicr {
 //
 bool QuicrReliabilityUnit::has_reliable_frames_to_resend() {
     return std::any_of(awaiting_ack_frames.begin(), awaiting_ack_frames.end(),
-        [](const auto& t) { return t.first < std::chrono::steady_clock::now(); });
+        [](const auto& t) { return t.second->deadline < std::chrono::steady_clock::now(); });
 }
 
-void QuicrReliabilityUnit::push_reliable_frame_received(QuicrFrame frame) {
-    m_acks_to_send.push_back(frame.frame_number);
+void QuicrReliabilityUnit::push_ack(uint32_t packet_number) {
+    m_acks_to_send.push_back(packet_number);
 }
 
-void QuicrReliabilityUnit::push_ack_received(uint32_t frame_idx) {
-    // m_acks_to_send.push_back(frame_idx);
-    std::erase_if(awaiting_ack_frames,
-        [frame_idx](const auto& t) {
-            return t.second.frame_number == frame_idx;
-        });
-}
+void QuicrReliabilityUnit::on_ack_received(uint32_t packet_number) {
+    auto packet = packets_in_flight.find(packet_number);
+    if(packet != packets_in_flight.end()) {
+        for(auto frame : packet->second.frame_numbers) {
+            if(awaiting_ack_frames.erase(frame) == 0) {
+                spdlog::error("Failed to erase frame {} from awaiting_ack_frames", frame);
+                continue;
+            }
 
+            std::erase_if(packets_in_flight, [frame, packet_number](auto& packet) {
+                // skip current packet
+                if(packet.second.packet_number == packet_number) {
+                    return false;
+                }
 
-std::vector<QuicrFrame> QuicrReliabilityUnit::pop_frames_to_resend() {
-    std::vector<QuicrFrame> resend_frames;
-    std::erase_if(awaiting_ack_frames, [&resend_frames](const auto& item) {
-        if(item.first < std::chrono::steady_clock::now()) {
-            resend_frames.push_back(item.second);
-            return true;
+                packet.second.frame_numbers.erase(frame);
+                return packet.second.frame_numbers.empty();
+            });
         }
 
-        return false;
-    });
+        packets_in_flight.erase(packet);
+    }
+
+
+
+    // m_acks_to_send.push_back(frame_idx);
+    // std::erase_if(awaiting_ack_frames,
+    //     [frame_idx](const auto& t) {
+    //         return t.second.frame_number == frame_idx;
+    //     });
+}
+
+
+std::vector<QuicrFrame> QuicrReliabilityUnit::pop_frames_to_resend(uint32_t new_packet_number) {
+    std::vector<QuicrFrame> resend_frames;
+
+    auto packet = packets_in_flight.try_emplace(new_packet_number, QuicrReliablePacket{new_packet_number, {}});
+
+    for(auto frame : awaiting_ack_frames) {
+        if(frame.second->deadline < Clock::now()) {
+            resend_frames.push_back(std::move(frame.second->frame));
+            packet.first->second.frame_numbers.insert(frame.first);
+            frame.second->deadline = Clock::now() + std::chrono::milliseconds(TW_NET_HELLO_RETRY_INTERVAL_IN_MILLIS);
+        }
+    }
+
+    // std::erase_if(awaiting_ack_frames, [&resend_frames](const auto& item) {
+    //     if(item.first < std::chrono::steady_clock::now()) {
+    //         resend_frames.push_back(item.second);
+    //         return true;
+    //     }
+
+    //     return false;
+    // });
     return resend_frames;
 }
 
-void QuicrReliabilityUnit::push_reliable_frame_to_send(Clock::time_point deadline, QuicrFrame&& frame) {
+void QuicrReliabilityUnit::push_reliable_frame(Clock::time_point deadline, QuicrFrame&& frame) {
     frame.is_reliable = true;
-    frames.push_back(frame);
-    awaiting_ack_frames.emplace_back(deadline, frame);
+    frame.frame_number = next_frame_number();
+    auto frame_number = frame.frame_number;
+    awaiting_ack_frames[frame_number] = new QuicrReliableFrame{deadline, std::move(frame)};
+
+    // awaiting_ack_frames.emplace_back(deadline, frame);
 }
 
-void QuicrReliabilityUnit::push_reliable_frame_to_send(Clock::time_point deadline, QuicrFrame& frame) {
+void QuicrReliabilityUnit::push_reliable_frame(Clock::time_point deadline, QuicrFrame& frame) {
     frame.is_reliable = true;
-    frames.push_back(frame);
-    awaiting_ack_frames.emplace_back(deadline, frame);
+    frame.frame_number = next_frame_number();
+    auto frame_number = frame.frame_number;
+    awaiting_ack_frames[frame_number] = new QuicrReliableFrame{deadline, std::move(frame)};
+    // awaiting_ack_frames.emplace_back(deadline, frame);
 }
 
 std::vector<uint32_t> QuicrReliabilityUnit::pop_acks_to_send() {

@@ -25,6 +25,15 @@ public:
         return frame;
     }
 
+    static QuicrFrame make_hello_fin() {
+        QuicrFrame frame;
+
+        frame.type = FrameType::HelloFin;
+        frame.is_reliable = true;
+
+        return frame;
+    }
+
     static QuicrFrame make_stream(std::vector<std::byte> content) {
         QuicrFrame frame;
 

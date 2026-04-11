@@ -28,8 +28,6 @@ class NetworkReceiver {
 
     void listen();
 
-    void process_frame(uint32_t session_id, const Frame& frame);
-
     void process_streams();
 
 public:
@@ -77,7 +75,7 @@ public:
 
         auto session = m_session_registry->session(session_id);
 
-        session->quicr_connection->push_stream_frame(bytes, true);
+        session->quicr_connection->send_message(bytes, false);
         return bytes.size();
     }
 };
