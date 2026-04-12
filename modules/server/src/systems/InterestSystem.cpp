@@ -51,6 +51,7 @@ void InterestSystem::update() {
 }
 
 const InterestResult InterestSystem::get_player_interest(PlayerClientId client_id) const {
+    ZoneScopedN("InterestSystem::get_player_interest");
     InterestResult result;
 
     auto state = get_client_state(client_id);

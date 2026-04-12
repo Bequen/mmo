@@ -26,6 +26,7 @@ target_link_libraries(${PROJECT_NAME}
 		loft_window
 		loft::render_graph
 		tw::protocol
+		tw::serialization
 		mmo::gui
         imgui::imgui
         imgui::plot

@@ -30,6 +30,7 @@ target_link_libraries(SerializationBenchmarks
     towards
     mmo::network
     tw::protocol
+    tw::serialization
     Tracy::TracyClient
     TracyClient
     Catch2::Catch2WithMain

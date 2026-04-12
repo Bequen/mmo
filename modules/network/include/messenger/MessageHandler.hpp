@@ -90,6 +90,10 @@ public:
         };
     }
 
+    constexpr void set_raw_handler(uint32_t type, const std::function<tl::expected<void, NetworkError>(std::span<std::byte>)> handler) {
+        m_handlers[type] = handler;
+    }
+
     void update() {
         m_quicr_endpoint->poll();
         while(true) {

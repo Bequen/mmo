@@ -21,6 +21,7 @@
 #include "world/CharacterController.hpp"
 #include "world/JoltPhysicsWorld.hpp"
 #include "world/WorldEntity.hpp"
+#include "tw/serial/WorldStateWriter.hpp"
 
 namespace tw {
 
@@ -154,17 +155,47 @@ ClientWorldController::ClientWorldController(
             }
         });
 
-    m_messenger->set_handler<mmo::WorldStateMessage>(
-        [&](mmo::WorldStateMessage* mesg) {
-            apply_entity_positions(mesg->entities().data(), mesg->entities_size());
+    m_messenger->set_raw_handler(Message<mmo::WorldStateMessage>::value,
+        [&](std::span<std::byte> data) -> tl::expected<void, net::NetworkError> {
+            serial::WorldStateReader reader(data);
 
-            for(const auto& spawn : mesg->spawns()) {
+            auto header = reader.read_header();
+
+            while(reader.has_spawn()) {
+                auto spawn = reader.read_spawn();
                 auto entity = create_entity("test", glm::vec3());
+                spdlog::info("Spawning entity {}", spawn);
 
-                map_server_entity(spawn.id(), entity);
+                map_server_entity(spawn, entity);
 
                 m_entity_interpolator.register_entity(entity);
             }
+
+            while(reader.has_entity()) {
+                auto entity_r = reader.read_entity();
+
+                std::optional<entt::entity> entity = map_from_server_entity(entity_r.id);
+
+                if(!entity.has_value()) {
+                    spdlog::warn("Received position update for unknown entity {}", entity_r.id);
+                    continue;
+                }
+
+                glm::vec3 p = {entity_r.position.x, entity_r.position.y, entity_r.position.z};
+                m_entity_interpolator.add_position_for_entity(entity.value(), p);
+
+                EntityPositionHistory* history = m_world->registry().try_get<EntityPositionHistory>(entity.value());
+
+                if(history != nullptr) {
+                    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now().time_since_epoch()).count();
+                    history->set(millis, p);
+                }
+            }
+
+            // apply_entity_positions();
+
+
+            return {};
         });
 
     m_messenger->set_handler<mmo::EntitySpawnMessage>(
@@ -184,7 +215,7 @@ ClientWorldController::ClientWorldController(
     login_request.set_username("martin");
     login_request.set_password("martin");
 
-    auto r = m_messenger->send(login_request);
+    // auto r = m_messenger->send(login_request);
 }
 
 ClientWorldController::~ClientWorldController() {
