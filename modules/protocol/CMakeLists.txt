@@ -8,6 +8,7 @@ set(GLOB FILES
 set(GLOB HEADERS
     ./src/messages/*.hpp
     ./src/*.pb.h
+    ./src/messages/*.h
 )
 
 file(GLOB PROTO_FILES

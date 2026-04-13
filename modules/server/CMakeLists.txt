@@ -24,6 +24,7 @@ target_link_libraries(tw_server
         towards
         mmo::network
         tw::protocol
+        tw::serialization
 
         PUBLIC
         glm::glm

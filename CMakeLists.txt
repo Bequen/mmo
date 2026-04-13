@@ -9,6 +9,8 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 23)
 endif()
 
+add_compile_options(-fno-omit-frame-pointer)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld")
 set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld")
 set(CMAKE_MODULE_LINKER_FLAGS "-fuse-ld=lld")
@@ -18,6 +20,7 @@ add_definitions(-DIMGUI_IMPL_VULKAN_USE_VOLK)
 add_definitions(-DSPDLOG_COMPILED_LIB)
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 add_definitions(-DTRACY_ENABLE)
+add_definitions(-DTRACY_CALLSTACK=1)
 
 set(LFT_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
 

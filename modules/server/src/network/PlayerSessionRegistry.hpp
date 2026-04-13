@@ -19,7 +19,7 @@ class PlayerSessionRegistry {
     SessionId generate_session_id();
 
 public:
-    std::vector<PlayerSession*> sessions() {
+    const std::vector<PlayerSession*>& sessions() const {
         return m_session_vec;
     }
 

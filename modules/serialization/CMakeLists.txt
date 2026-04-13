@@ -1,35 +1,28 @@
 cmake_minimum_required(VERSION 3.26)
 project(tw_serialization)
 
+# ── Library ──────────────────────────────────────────────────────────────────
+# tw::serialization is a header-only INTERFACE library.
+# All hot-path code is in inline functions / templates so the compiler can
+# see everything in one translation unit and optimise accordingly.
+
+add_library(tw_serialization INTERFACE)
+add_library(tw::serialization ALIAS tw_serialization)
+
+target_include_directories(tw_serialization
+    INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/tw/serial/
+)
+
+target_link_libraries(tw_serialization
+    INTERFACE
+        glm::glm
+        EnTT::EnTT
+)
+
+# Require C++20 for concepts / span
+target_compile_features(tw_serialization INTERFACE cxx_std_20)
+
+# ── Tests / benchmarks ───────────────────────────────────────────────────────
 add_subdirectory(tests)
-
-file(GLOB FILES
-    src/*.cpp
-)
-
-file(GLOB HEADERS
-    include/*.hpp
-)
-
-# add_library(${PROJECT_NAME} OBJECT ${FILES})
-# add_library(tw::serialization ALIAS tw_serialization)
-# target_sources(${PROJECT_NAME}
-#     PUBLIC FILE_SET HEADERS
-#     BASE_DIRS include
-#     FILES ${HEADERS})
-
-# set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE 1)
-
-# target_include_directories(${PROJECT_NAME}
-#     PUBLIC
-#     ./include/
-# )
-
-# target_link_libraries(${PROJECT_NAME}
-#     PRIVATE
-#     spdlog::spdlog
-#     tw::protocol
-#     tl::expected
-#     Tracy::TracyClient
-#     TracyClient
-# )

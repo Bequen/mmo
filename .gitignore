@@ -3,3 +3,4 @@ Debug/
 .cache
 imgui.ini
 compile_commands.json
+.opencode/

@@ -1,0 +1,16 @@
+struct Vec3 {
+    x: float;
+    y: float;
+    z: float;
+}
+
+table PlayerInfo {
+  id:int;
+  pos:Vec3;
+}
+
+table WorldState {
+    players:[PlayerInfo];
+}
+
+root_type WorldState;

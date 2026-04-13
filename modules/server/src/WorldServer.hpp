@@ -12,6 +12,7 @@
 #include "PlayerClient.hpp"
 #include "entt/entity/fwd.hpp"
 #include "interest_management/DistanceInterestManagement.hpp"
+#include "interest_management/FixedGrid.hpp"
 #include "messages/PlayerMoveMessage.hpp"
 #include "monitoring/BandwidthMonitor.hpp"
 #include "network/MessageDispatcher.hpp"
@@ -31,6 +32,11 @@ struct EntityInfo {
     glm::vec3 position;
 };
 
+// Spatial backend: FixedGrid for a bounded world (10km × 10km, 500-unit cells)
+// Adjust the bounds and cell size to match your world configuration.
+// CELL_SIZE = VIEW_RADIUS (500) means a 3×3 grid neighborhood with no distance checks.
+using SpatialBackendType = im::FixedGrid<-5000, 5000, -5000, 5000, 500, 500>;
+
 class WorldServer {
 private:
     std::unique_ptr<BandwidthMonitor> m_monitor;
@@ -47,8 +53,8 @@ private:
 
     std::unordered_map<PlayerClientId, entt::entity> m_client_entity_mappings;
 
-    std::unique_ptr<im::InterestSystem> m_interest_system;
-    std::unique_ptr<StateReplicator> m_replicator;
+    std::unique_ptr<im::InterestSystem<SpatialBackendType>> m_interest_system;
+    std::unique_ptr<StateReplicator<SpatialBackendType>> m_replicator;
 
     inline entt::entity get_client_entity(PlayerClientId clientId) {
         return m_client_entity_mappings[clientId];

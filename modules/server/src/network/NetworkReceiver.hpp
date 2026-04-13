@@ -9,6 +9,8 @@
 #include "protocol/quicr/QuicrConnectionListener.hpp"
 #include "protocol/quicr/QuicrEndpoint.hpp"
 
+#include <span>
+
 namespace tw::net {
 
 class NetworkReceiver {
@@ -75,6 +77,33 @@ public:
 
         auto session = m_session_registry->session(session_id);
 
+        session->quicr_connection->send_message(bytes, false);
+        return bytes.size();
+    }
+
+    /**
+     * Send a pre-serialised raw byte payload directly, with no additional
+     * framing.  The caller is responsible for including any type tag and
+     * length prefix in the payload (as tw::serial::WorldStateWriter does).
+     *
+     * This avoids the Protobuf SerializeToString heap allocation entirely —
+     * the span points into the caller's BinaryBuffer, which is reused every
+     * frame.
+     */
+    size_t send_raw(SessionId session_id, std::span<const std::byte> payload) {
+        if(payload.empty()) {
+            return 0;
+        }
+
+        auto* session = m_session_registry->session(session_id);
+        if(!session) {
+            return 0;
+        }
+
+        // QuicrConnection::send_message takes a std::vector<std::byte>.
+        // We copy the span here.  If the QUICr layer is ever refactored to
+        // accept a span we can remove this copy entirely.
+        std::vector<std::byte> bytes(payload.begin(), payload.end());
         session->quicr_connection->send_message(bytes, false);
         return bytes.size();
     }
