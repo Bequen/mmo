@@ -2,7 +2,7 @@
 
 #include "network/NetworkReceiver.hpp"
 #include "network/PlayerSessionRegistry.hpp"
-#include "systems/InterestResult.hpp"
+#include "systems/ClientState.hpp"
 #include "systems/InterestSystem.hpp"
 #include "world/Transform.hpp"
 
@@ -11,6 +11,9 @@
 #include <entt/entt.hpp>
 #include <spdlog/spdlog.h>
 #include <tracy/Tracy.hpp>
+#include <algorithm>
+#include <cassert>
+#include <complex>
 
 namespace tw::net {
 
@@ -18,27 +21,25 @@ namespace tw::net {
  * Decides what to replicate and to whom.  Does not mutate world state.
  *
  * Per-frame flow:
- *   1. Collect interest results for every session.
- *   2. For each session: reset its BinaryBuffer and write the header,
- *      spawns and despawns via WorldStateWriter::begin/write_spawns/
- *      write_despawns.  Leave the writer open (entity_count not yet patched).
- *   3. Walk the Transform view once; for each entity, write its position into
- *      every client buffer whose interest set contains it.
- *   4. Patch entity_count and send each raw buffer — zero Protobuf, zero heap.
+ *   1. For each session: reset its BinaryBuffer and write the header,
+ *      spawns and despawns from the InterestSystem.
+ *   2. For each session: iterate its interest set and write entity positions
+ *   3. Patch entity_count and send each raw buffer
  *
  * Memory: one BinaryBuffer per session, pre-allocated and reused every frame.
  */
+template<im::SpatialBackend Backend>
 class StateReplicator {
-    const World*              m_world;
-    PlayerSessionRegistry*    m_client_registry;
-    NetworkReceiver*          m_network;
-    const im::InterestSystem* m_interest_manager;
+    const World*                          m_world;
+    PlayerSessionRegistry*                m_client_registry;
+    NetworkReceiver*                      m_network;
+    const im::InterestSystem<Backend>*    m_interest_manager;
 
     // Per-client writers and their backing buffers reused every frame.
     struct ClientFrame {
         tw::serial::BinaryBuffer buffer;
-        // entity_count is appended inline in step 3; we track it separately
-        // and patch at step 4.
+        // entity_count is appended inline in step 2; we track it separately
+        // and patch at step 3.
         uint32_t entity_count{ 0 };
         // Byte offset of the entity_count field inside `buffer`
         std::size_t entity_count_offset{ 0 };
@@ -51,10 +52,10 @@ class StateReplicator {
 
 public:
     StateReplicator(
-        const World*              world,
-        PlayerSessionRegistry*    client_registry,
-        NetworkReceiver*          network,
-        const im::InterestSystem* interest_manager
+        const World*                        world,
+        PlayerSessionRegistry*              client_registry,
+        NetworkReceiver*                    network,
+        const im::InterestSystem<Backend>*  interest_manager
     ) :
         m_world(world),
         m_client_registry(client_registry),
@@ -81,22 +82,29 @@ public:
             }
         }
 
-        // ── 2. Collect interest; write header / spawns / despawns ─────────
-        std::vector<im::InterestResult> interests(session_count);
+        // ── 2. Collect interest and write headers / spawns / despawns ─────
+        std::vector<const im::ClientState*> client_states(session_count);
 
         {
             ZoneScopedN("Preparing messages");
 
             for (std::size_t i = 0; i < session_count; ++i) {
                 const auto* session = sessions[i];
-                interests[i] = m_interest_manager->get_player_interest(session->session_id);
+                const im::ClientState* state =
+                    m_interest_manager->get_player_interest(session->session_id);
+
+                client_states[i] = state;
+                if (!state) {
+                    // Client not registered in interest system yet
+                    continue;
+                }
 
                 // Grow buffer to accommodate worst-case entity count
                 const std::size_t needed =
                     20
-                    + interests[i].spawns().size()   * 4
-                    + interests[i].despawns().size() * 4
-                    + interests[i].entities().size() * 16;
+                    + state->spawn().size()   * 4
+                    + state->despawn().size() * 4
+                    + state->interest().size() * 16;
 
                 auto& frame = m_frames[i];
                 frame.buffer.reserve(needed);
@@ -107,7 +115,7 @@ public:
                 // [packet_type:4][frame_idx:4][entity_count:4 (placeholder)]
                 // [spawn_count:4][spawn_ids…]
                 // [despawn_count:4][despawn_ids…]
-                // entity records follow in step 3.
+                // entity records follow in step 2.
 
                 tw::serial::BinaryWriter w(frame.buffer);
 
@@ -120,51 +128,42 @@ public:
                 w.encode<uint32_t>(0u);
 
                 // spawns
-                w.encode<uint32_t>(
-                    static_cast<uint32_t>(interests[i].spawns().size()));
-                for (entt::entity e : interests[i].spawns()) {
+                w.encode<uint32_t>(static_cast<uint32_t>(state->spawn().size()));
+                for (entt::entity e : state->spawn()) {
                     w.encode<uint32_t>(static_cast<uint32_t>(e));
                 }
 
                 // despawns
-                w.encode<uint32_t>(
-                    static_cast<uint32_t>(interests[i].despawns().size()));
-                for (entt::entity e : interests[i].despawns()) {
+                w.encode<uint32_t>(static_cast<uint32_t>(state->despawn().size()));
+                for (entt::entity e : state->despawn()) {
                     w.encode<uint32_t>(static_cast<uint32_t>(e));
                 }
             }
         }
 
-        // ── 3. Scatter entity positions into client buffers (hot path) ────
+        // ── 2b. Write entity positions per-client (hot path, O(P × K)) ────
         {
             ZoneScopedN("Putting transforms into messages");
 
-            m_world->registry().view<Transform>()
-                .each([&](entt::entity entity, const Transform& transform) {
-                    const uint32_t raw_id = static_cast<uint32_t>(entity);
-                    const glm::vec3 pos   = transform.position();
+            auto view = m_world->registry().view<Transform>();
+            view.each([&](entt::entity e, const Transform& t) {
+                for (std::size_t i = 0; i < session_count; ++i) {
+                    auto& frame = m_frames[i];
+                    auto& state = client_states[i];
 
-                    for (std::size_t i = 0; i < session_count; ++i) {
-                        // Membership test: only send entities in this client's
-                        // interest set.
-                        // NOTE: O(n) linear scan.  If InterestResult::entities()
-                        // is changed to an unordered_set this becomes O(1).
-                        // const auto& entities = interests[i].entities();
-                        // const bool in_interest = std::find(
-                        //     entities.cbegin(), entities.cend(), entity
-                        // ) != entities.cend();
+                    if (state && state->is_interested_in_entity(e)) {
+                        const uint32_t raw_id = static_cast<uint32_t>(e);
+                        const glm::vec3 pos   = t.position();
 
-                        // if (!in_interest) continue;
-
-                        // Two contiguous memcpys — no branching inside.
-                        m_frames[i].buffer.append(&raw_id, sizeof(uint32_t));
-                        m_frames[i].buffer.append(&pos.x,  3 * sizeof(float));
-                        ++m_frames[i].entity_count;
+                        frame.buffer.append(&raw_id, sizeof(uint32_t));
+                        frame.buffer.append(&pos.x,  3 * sizeof(float));
+                        ++frame.entity_count;
                     }
-                });
+                }
+            });
         }
 
-        // ── 4. Patch entity_count and dispatch raw buffers ────────────────
+        // ── 3. Patch entity_count and dispatch raw buffers ────────────────
         {
             ZoneScopedN("Sending messages");
 

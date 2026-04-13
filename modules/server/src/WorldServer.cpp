@@ -31,8 +31,12 @@ WorldServer::WorldServer(int port, int quicr_port) :
     m_network_receiver(std::make_unique<NetworkReceiver>(m_player_session_registry.get(), port, quicr_port)),
     m_world(std::make_unique<World>()),
     m_physics_world(m_world.get()),
-    m_interest_system(std::make_unique<im::InterestSystem>(m_world.get(), m_player_session_registry.get())),
-    m_replicator(std::make_unique<StateReplicator>(m_world.get(), m_player_session_registry.get(), m_network_receiver.get(), m_interest_system.get()))
+    m_interest_system(std::make_unique<im::InterestSystem<SpatialBackendType>>(
+        m_world.get(), m_player_session_registry.get()
+    )),
+    m_replicator(std::make_unique<StateReplicator<SpatialBackendType>>(
+        m_world.get(), m_player_session_registry.get(), m_network_receiver.get(), m_interest_system.get()
+    ))
 { }
 
 void WorldServer::player_update_handler(PlayerClientId clientId, mmo::PlayerMoveMessage&& message) {
