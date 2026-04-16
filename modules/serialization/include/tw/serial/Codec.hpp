@@ -119,6 +119,11 @@ public:
 
     BinaryBuffer&       buffer()       noexcept { return m_buf; }
     const BinaryBuffer& buffer() const noexcept { return m_buf; }
+
+    void reset() noexcept {
+        m_buf.reset();
+    }
+
 };
 
 // ──────────────────────────────────────────────────────────────────────────

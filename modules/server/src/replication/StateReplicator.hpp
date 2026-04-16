@@ -11,9 +11,7 @@
 #include <entt/entt.hpp>
 #include <spdlog/spdlog.h>
 #include <tracy/Tracy.hpp>
-#include <algorithm>
 #include <cassert>
-#include <complex>
 
 namespace tw::net {
 
@@ -35,17 +33,8 @@ class StateReplicator {
     NetworkReceiver*                      m_network;
     const im::InterestSystem<Backend>*    m_interest_manager;
 
-    // Per-client writers and their backing buffers reused every frame.
-    struct ClientFrame {
-        tw::serial::BinaryBuffer buffer;
-        // entity_count is appended inline in step 2; we track it separately
-        // and patch at step 3.
-        uint32_t entity_count{ 0 };
-        // Byte offset of the entity_count field inside `buffer`
-        std::size_t entity_count_offset{ 0 };
-    };
-
-    std::vector<ClientFrame> m_frames;
+    // Per-client backing buffers reused every frame.
+    std::vector<tw::serial::BinaryBuffer> m_frames;
 
     // Header(12) + spawn_hdr(4) + despawn_hdr(4) + 512 entities × 16 bytes
     static constexpr std::size_t kInitialCapacity = 20 + 512 * 16;
@@ -70,21 +59,28 @@ public:
         ZoneScopedN("Replicator");
 
         const auto& sessions = m_client_registry->sessions();
-        const auto session_count = sessions.size();
+        const std::size_t session_count = sessions.size();
 
         if (session_count == 0) return;
 
-        // ── 1. Grow frame pool if needed (only on new connections) ─────────
+        // ── Grow buffer pool if needed (only on new connections) ──────────
         if (m_frames.size() < session_count) {
             m_frames.resize(session_count);
-            for (auto& f : m_frames) {
-                f.buffer.reserve(kInitialCapacity);
-            }
+            for (auto& buf : m_frames)
+                buf.reserve(kInitialCapacity);
         }
 
-        // ── 2. Collect interest and write headers / spawns / despawns ─────
+        // Build one WorldStateWriter per client referencing the pre-allocated
+        // buffer.  reserve() is called before this loop so no reallocation
+        // occurs and the buffer references inside the writers stay valid.
+        std::vector<tw::serial::WorldStateWriter> writers;
+        writers.reserve(session_count);
+        for (std::size_t i = 0; i < session_count; ++i)
+            writers.emplace_back(m_frames[i]);
+
         std::vector<const im::ClientState*> client_states(session_count);
 
+        // ── 1. Write headers / spawns / despawns ──────────────────────────
         {
             ZoneScopedN("Preparing messages");
 
@@ -94,88 +90,43 @@ public:
                     m_interest_manager->get_player_interest(session->session_id);
 
                 client_states[i] = state;
-                if (!state) {
-                    // Client not registered in interest system yet
-                    continue;
-                }
+                if (!state) continue;
 
-                // Grow buffer to accommodate worst-case entity count
                 const std::size_t needed =
                     20
-                    + state->spawn().size()   * 4
-                    + state->despawn().size() * 4
+                    + state->spawn().size()    * 4
+                    + state->despawn().size()  * 4
                     + state->interest().size() * 16;
 
-                auto& frame = m_frames[i];
-                frame.buffer.reserve(needed);
-                frame.buffer.reset();
-                frame.entity_count = 0;
-
-                // ── Write header ────────────────────────────────────────
-                // [packet_type:4][frame_idx:4][entity_count:4 (placeholder)]
-                // [spawn_count:4][spawn_ids…]
-                // [despawn_count:4][despawn_ids…]
-                // entity records follow in step 2.
-
-                tw::serial::BinaryWriter w(frame.buffer);
-
-                // packet_type = WORLD_STATE_PACKET (3)
-                w.encode<uint32_t>(tw::serial::kWorldStatePacketType);
-                // frame_idx
-                w.encode<uint32_t>(session->last_frame);
-                // entity_count placeholder — remember offset for later patch
-                frame.entity_count_offset = frame.buffer.size();
-                w.encode<uint32_t>(0u);
-
-                // spawns
-                w.encode<uint32_t>(static_cast<uint32_t>(state->spawn().size()));
-                for (entt::entity e : state->spawn()) {
-                    w.encode<uint32_t>(static_cast<uint32_t>(e));
-                }
-
-                // despawns
-                w.encode<uint32_t>(static_cast<uint32_t>(state->despawn().size()));
-                for (entt::entity e : state->despawn()) {
-                    w.encode<uint32_t>(static_cast<uint32_t>(e));
-                }
+                m_frames[i].reserve(needed);
+                writers[i].reset();
+                writers[i].begin(session->last_frame);
+                writers[i].write_spawns(state->spawn());
+                writers[i].write_despawns(state->despawn());
             }
         }
 
-        // ── 2b. Write entity positions per-client (hot path, O(P × K)) ────
+        // ── 2. Write entity positions (hot path, O(entities × sessions)) ──
         {
             ZoneScopedN("Putting transforms into messages");
 
             auto view = m_world->registry().view<Transform>();
             view.each([&](entt::entity e, const Transform& t) {
                 for (std::size_t i = 0; i < session_count; ++i) {
-                    auto& frame = m_frames[i];
-                    auto& state = client_states[i];
-
-                    if (state && state->is_interested_in_entity(e)) {
-                        const uint32_t raw_id = static_cast<uint32_t>(e);
-                        const glm::vec3 pos   = t.position();
-
-                        frame.buffer.append(&raw_id, sizeof(uint32_t));
-                        frame.buffer.append(&pos.x,  3 * sizeof(float));
-                        ++frame.entity_count;
-                    }
+                    if (client_states[i] && client_states[i]->is_interested_in_entity(e))
+                        writers[i].write_entity(e, t.position());
                 }
             });
         }
 
-        // ── 3. Patch entity_count and dispatch raw buffers ────────────────
+        // ── 3. Finalise and dispatch ───────────────────────────────────────
         {
             ZoneScopedN("Sending messages");
 
             for (std::size_t i = 0; i < session_count; ++i) {
-                auto& frame = m_frames[i];
-
-                // Patch the entity_count field at the pre-recorded offset
-                frame.buffer.patch_u32(frame.entity_count_offset,
-                                       frame.entity_count);
-
-                m_network->send_raw(sessions[i]->session_id,
-                                    frame.buffer.view());
+                if (!client_states[i]) continue;
+                writers[i].end();
+                m_network->send_raw(sessions[i]->session_id, writers[i].view());
             }
         }
     }

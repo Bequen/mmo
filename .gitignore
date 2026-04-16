@@ -1,6 +1,13 @@
 build/
 Debug/
+Release/
+Testing/
 .cache
 imgui.ini
-compile_commands.json
+
+# editors
+.zed/
+.idea/
+cmake-build-debug/
 .opencode/
+compile_commands.json

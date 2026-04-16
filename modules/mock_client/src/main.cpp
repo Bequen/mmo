@@ -50,23 +50,14 @@ public:
                     m_connected_semaphore.release();
                 }
             });
-
-        mmo::LoginRequest join_request;
-        join_request.set_username(name);
-        join_request.set_password("test");
-
-        // m_handler.send(join_request);
     }
 
     void run() {
-        // while(!m_is_connected) {
-        //     // m_handler.update();
-        //     // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        // }
         while(!m_handler.is_connected()) {
             m_handler.update();
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
+
         mmo::PlayerMoveMessage player_move_mesg;
 
         float value;
@@ -96,7 +87,7 @@ public:
 };
 
 int main() {
-    const int NUM_CLIENTS = 300;
+    const int NUM_CLIENTS = 600;
     tw::net::Address address = {"127.0.0.1", 8101};
 
     std::vector<std::thread> threads;

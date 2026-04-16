@@ -155,7 +155,6 @@ void QuicrEndpoint::poll() {
 
     for(auto& connection : m_connections) {
         ZoneScopedN("Per Connection");
-        // connection.second->on_tick(now);
 
         while(connection.second->has_next_datagram()) {
             auto datagram = connection.second->pop_datagram();
