@@ -12,14 +12,14 @@ file(GLOB FILES
     src/network/*.cpp
 )
 
-add_executable(${PROJECT_NAME} src/server.cpp ${FILES})
+add_library(tw_server_lib STATIC ${FILES})
 
-target_include_directories(tw_server
+target_include_directories(tw_server_lib
         PUBLIC
         ${PROJECT_SOURCE_DIR}/src/
 )
 
-target_link_libraries(tw_server
+target_link_libraries(tw_server_lib
         PUBLIC
         towards
         mmo::network
@@ -37,3 +37,12 @@ target_link_libraries(tw_server
         pqxx
         pq
 )
+
+add_executable(${PROJECT_NAME} src/server.cpp)
+
+target_link_libraries(tw_server
+        PUBLIC
+        tw_server_lib
+)
+
+ADD_SUBDIRECTORY(./tests/)

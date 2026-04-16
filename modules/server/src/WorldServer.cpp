@@ -88,19 +88,6 @@ void WorldServer::update_clients(uint32_t frame_idx) {
         m_interest_system->set_interest_delegate(session_id, entity);
         spdlog::info("Client {} connected", session_id);
     }
-    // m_client_manager.update();
-
-    // auto new_clients = m_client_manager.pop_connected_clients();
-    // for(auto& client : new_clients) {
-    // }
-
-    // auto disconnected_clients = m_client_manager.pop_disconnected_clients();
-    // for(auto& client : disconnected_clients) {
-    //     auto entity = m_client_entity_mappings[client];
-    //     m_client_entity_mappings.erase(client);
-    //     m_world->registry().destroy(entity);
-    //     spdlog::info("Client {} disconnected", client);
-    // }
 }
 
 void WorldServer::run() {
@@ -114,16 +101,6 @@ void WorldServer::run() {
         [&](PlayerClientId clientId, mmo::PlayerMoveMessage mesg) {
             player_update_handler(clientId, std::move(mesg));
         });
-
-    // for(uint32_t i = 0; i < 100; i++) {
-    //     spawn_entity(entt::entity(0), EntityInfo {
-    //         .name = "entity_" + std::to_string(i),
-    //         // random position
-    //         .position = { static_cast<float>(rand()) / RAND_MAX * 100.0f - 50.0f,
-    //                       static_cast<float>(rand()) / RAND_MAX * 100.0f - 50.0f,
-    //                       static_cast<float>(rand()) / RAND_MAX * 100.0f - 50.0f },
-    //     });
-    // }
 
     while(!quit.load()) {
         if(lock_step.wait_for_next_step()) { continue; }
@@ -147,6 +124,8 @@ void WorldServer::run() {
         FrameMarkStart("Physics step");
         m_physics_world.step(frame_idx, lock_step.delta_time());
         FrameMarkEnd("Physics step");
+
+        m_network_receiver->update();
 
         frame_idx++;
         FrameMark;

@@ -122,7 +122,7 @@ public:
     template<typename Range>
     void write_despawns(const Range& despawns) noexcept {
         auto count = static_cast<uint32_t>(std::size(despawns));
-        m_w.encode<uint32_t>(count);
+        // m_w.encode<uint32_t>(count);
         for (const entt::entity e : despawns) {
             m_w.encode<entt::entity>(e);
         }
@@ -162,6 +162,11 @@ public:
     std::span<const std::byte> view() noexcept {
         return m_w.buffer().view();
     }
+
+    void reset() noexcept {
+        m_w.reset();
+        m_entity_count = 0;
+    }
 };
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -191,9 +196,6 @@ class WorldStateReader {
 
     uint32_t m_entities_read{ 0 };
 
-    enum class Phase { Header, Spawns, Despawns, Entities, Done };
-    Phase m_phase{ Phase::Header };
-
 public:
     explicit WorldStateReader(std::span<const std::byte> data) noexcept
         : m_r(data) {}
@@ -206,8 +208,6 @@ public:
 
         // spawn count follows immediately
         m_spawn_count  = m_r.decode<uint32_t>();
-        spdlog::info("Spawn count: {}", m_spawn_count);
-        m_phase = Phase::Spawns;
         return m_header;
     }
 
@@ -215,13 +215,14 @@ public:
     bool has_spawn() const noexcept { return m_spawns_read < m_spawn_count; }
 
     uint32_t read_spawn() noexcept {
+        assert(has_spawn());
         ++m_spawns_read;
         uint32_t id = m_r.decode<uint32_t>();
-        if (!has_spawn()) {
-            // transition to despawns
-            m_despawn_count = m_r.decode<uint32_t>();
-            m_phase = Phase::Despawns;
-        }
+        // if (!has_spawn()) {
+        //     // transition to despawns
+        //     m_despawn_count = m_r.decode<uint32_t>();
+        //     m_phase = Phase::Despawns;
+        // }
         return id;
     }
 
@@ -233,11 +234,9 @@ public:
     bool has_despawn() const noexcept { return m_despawns_read < m_despawn_count; }
 
     uint32_t read_despawn() noexcept {
+        assert(has_despawn());
         ++m_despawns_read;
         uint32_t id = m_r.decode<uint32_t>();
-        if (!has_despawn()) {
-            m_phase = Phase::Entities;
-        }
         return id;
     }
 
@@ -250,6 +249,7 @@ public:
     }
 
     EntityRecord read_entity() noexcept {
+        assert(has_entity());
         EntityRecord rec;
         rec.id = m_r.read<uint32_t>();
         m_r.read_bytes(&rec.position.x, 3 * sizeof(float));
