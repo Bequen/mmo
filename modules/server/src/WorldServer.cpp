@@ -1,7 +1,8 @@
 #include "WorldServer.hpp"
 
 
-#include "PlayerMove.pb.h"
+#include "Chat.pb.h"
+#include "MessageRegistry.hpp"
 #include "PlayerClient.hpp"
 #include "network/OutboundMessage.hpp"
 #include "network/PlayerSessionRegistry.hpp"
@@ -100,6 +101,10 @@ void WorldServer::run() {
     m_message_dispatcher->set_handler<mmo::PlayerMoveMessage>(
         [&](PlayerClientId clientId, mmo::PlayerMoveMessage mesg) {
             player_update_handler(clientId, std::move(mesg));
+        });
+
+    m_message_dispatcher->set_handler<mmo::chat::SendChatMessageRequest>(
+        [&](PlayerClientId clientId, mmo::chat::SendChatMessageRequest mesg) {
         });
 
     while(!quit.load()) {

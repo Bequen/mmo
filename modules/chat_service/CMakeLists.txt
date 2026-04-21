@@ -1,0 +1,4 @@
+add_subdirectory(chat_lib)
+add_subdirectory(chat_service)
+add_subdirectory(chat_client)
+add_subdirectory(chat_server_exe)

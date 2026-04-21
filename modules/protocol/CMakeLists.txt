@@ -33,6 +33,8 @@ target_include_directories(${PROJECT_NAME}
     ./src/
 )
 
+file(MAKE_DIRECTORY "${PROTO_BINARY_DIR}")
+
 include(FindProtobuf)
 find_package(Protobuf CONFIG REQUIRED)
 protobuf_generate(

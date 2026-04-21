@@ -30,7 +30,6 @@ target_link_libraries(QuicrBenchmarks
     ${LIBS}
     ${PROJECT_NAME}_sources
     Tracy::TracyClient
-    TracyClient
     Catch2::Catch2WithMain
     tl::expected
     EnTT::EnTT

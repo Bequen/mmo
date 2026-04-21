@@ -89,13 +89,13 @@ FetchContent_Declare(
     GIT_SHALLOW    TRUE
 )
 
-FetchContent_Declare(
-    Quadtree
-    GIT_REPOSITORY https://github.com/pvigier/Quadtree.git
-    GIT_SHALLOW    TRUE
-)
+# FetchContent_Declare(
+#     Quadtree
+#     GIT_REPOSITORY https://github.com/pvigier/Quadtree.git
+#     GIT_SHALLOW    TRUE
+# )
 
-FetchContent_MakeAvailable(glm entt Catch2 JoltPhysics spdlog expected tracy Quadtree)
+FetchContent_MakeAvailable(glm entt Catch2 JoltPhysics spdlog expected tracy)
 
 add_subdirectory(./external/loft)
 add_subdirectory(./external/imgui)
@@ -103,6 +103,8 @@ add_subdirectory(./external/implot)
 
 add_subdirectory(./modules/network/)
 add_subdirectory(./modules/protocol/)
+add_subdirectory(./modules/messaging/)
+add_subdirectory(./modules/chat_service/)
 add_subdirectory(./modules/server/)
 add_subdirectory(./modules/client/)
 add_subdirectory(./modules/mock_client/)

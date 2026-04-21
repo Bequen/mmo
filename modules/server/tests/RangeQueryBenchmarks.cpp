@@ -10,7 +10,7 @@
 #include <spdlog/spdlog.h>
 #include <tracy/Tracy.hpp>
 
-#include "Quadtree.h"
+// #include "Quadtree.h"
 
 void* operator new(std::size_t count) {
     auto ptr = malloc(count);
@@ -164,48 +164,48 @@ void naive(entt::registry& registry, const std::vector<glm::vec3>& query_points)
     spdlog::info("Naive Elapsed time: {}ms", elapsed.count());
 }
 
-void quadtree_query(entt::registry& registry, const std::vector<glm::vec3>& query_points) {
-    ZoneScopedN("quadtree_query");
-    struct Node
-    {
-        quadtree::Box<float> box;
-        uint32_t id;
-    };
+// void quadtree_query(entt::registry& registry, const std::vector<glm::vec3>& query_points) {
+//     ZoneScopedN("quadtree_query");
+//     struct Node
+//     {
+//         quadtree::Box<float> box;
+//         uint32_t id;
+//     };
 
-    auto getBox = [](Node* node)
-    {
-        return node->box;
-    };
+//     auto getBox = [](Node* node)
+//     {
+//         return node->box;
+//     };
 
-    auto box = quadtree::Box((float)-SIZE, (float)-SIZE, (float)2*SIZE, (float)2*SIZE);
-    std::vector<Node> nodes(ENTITY_COUNT);
+//     auto box = quadtree::Box((float)-SIZE, (float)-SIZE, (float)2*SIZE, (float)2*SIZE);
+//     std::vector<Node> nodes(ENTITY_COUNT);
 
-    auto start = Clock::now();
+//     auto start = Clock::now();
 
-    for(int frame = 0; frame < FRAME_COUNT; frame++) {
-        quadtree::Quadtree<Node*, decltype(getBox)> quad_tree(box, getBox);
-        { ZoneScopedN("move");
-            move_points(registry); }
-        { ZoneScopedN("insert");
-            for (auto entity : registry.view<Position>()) {
-                auto [x, y, z] = registry.get<Position>(entity);
-                auto node = &nodes[(uint32_t)entity];
-                node->box = quadtree::Box(x, y, 0.0f, 0.0f);
-                node->id = (uint32_t)entity;
-                quad_tree.add(node);
-            }
-        }
-        { ZoneScopedN("query");
-            for (const auto& pos : query_points) {
-                quad_tree.query(quadtree::Box(pos.x - 10.0f, pos.y - 10.0f, 20.0f, 20.0f));
-            }
-        }
-    }
+//     for(int frame = 0; frame < FRAME_COUNT; frame++) {
+//         quadtree::Quadtree<Node*, decltype(getBox)> quad_tree(box, getBox);
+//         { ZoneScopedN("move");
+//             move_points(registry); }
+//         { ZoneScopedN("insert");
+//             for (auto entity : registry.view<Position>()) {
+//                 auto [x, y, z] = registry.get<Position>(entity);
+//                 auto node = &nodes[(uint32_t)entity];
+//                 node->box = quadtree::Box(x, y, 0.0f, 0.0f);
+//                 node->id = (uint32_t)entity;
+//                 quad_tree.add(node);
+//             }
+//         }
+//         { ZoneScopedN("query");
+//             for (const auto& pos : query_points) {
+//                 quad_tree.query(quadtree::Box(pos.x - 10.0f, pos.y - 10.0f, 20.0f, 20.0f));
+//             }
+//         }
+//     }
 
-    auto end = Clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    spdlog::info("QuadTree Elapsed time: {}ms", elapsed.count());
-}
+//     auto end = Clock::now();
+//     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+//     spdlog::info("QuadTree Elapsed time: {}ms", elapsed.count());
+// }
 
 int main() {
     entt::registry registry;
@@ -215,7 +215,7 @@ int main() {
     auto query_points = generate_query_points(1000);
 
     naive(registry, query_points);
-    quadtree_query(registry, query_points);
+    // quadtree_query(registry, query_points);
     fixed_grid(registry, query_points);
     hash_grid(registry, query_points);
 }

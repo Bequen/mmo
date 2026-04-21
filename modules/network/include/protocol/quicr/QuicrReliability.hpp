@@ -1,7 +1,6 @@
 #pragma once
 
 #include "bytebuffer/ByteBuffer.hpp"
-#include "metrics/NetworkStatsLogger.hpp"
 #include "protocol/quicr/QuicrFrame.hpp"
 #include <cstddef>
 #include <deque>
@@ -20,6 +19,8 @@ public:
 };
 
 struct QuicrReliableFrame {
+    using Clock = std::chrono::steady_clock;
+
     Clock::time_point deadline;
     QuicrFrame frame;
 };

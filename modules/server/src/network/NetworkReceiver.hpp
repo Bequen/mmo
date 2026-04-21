@@ -1,10 +1,9 @@
 #pragma once
 
 #include "TcpListener.hpp"
-#include "frames/Frame.hpp"
 #include "MessageQueue.hpp"
 #include "InboundMessage.hpp"
-#include "packets/LoginPacket.hpp"
+#include "MessageRegistry.hpp"
 #include "network/PlayerSessionRegistry.hpp"
 #include "protocol/quicr/QuicrConnectionListener.hpp"
 #include "protocol/quicr/QuicrEndpoint.hpp"
