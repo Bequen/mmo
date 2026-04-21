@@ -60,6 +60,11 @@ public:
 
     static tl::expected<QuicrEndpoint, NetworkError> create();
 
+    /**
+     * Creates the QUICr endpoint and binds it to a port.
+     */
+    static tl::expected<QuicrEndpoint, NetworkError> create_and_bind(int16_t port);
+
     void assign_listener(QuicrConnectionListener* listener) {
         m_new_connection_handler = listener;
     }

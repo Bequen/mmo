@@ -8,6 +8,7 @@
 #include "Address.hpp"
 #include "BucketMetric.hpp"
 #include "packets/Packet.hpp"
+#include "MessageRegistry.hpp"
 
 namespace tw::net {
 

@@ -1,0 +1,47 @@
+edition = "2023";
+
+package mmo.chat;
+
+message SendChatMessageRequest {
+    uint64 channel_id = 1;
+    string message    = 2;
+}
+
+message JoinChannelRequest {
+    uint64 channel_id = 1;
+}
+
+message LeaveChannelRequest {
+    uint64 channel_id = 1;
+}
+
+message ChatMessageBroadcastRequest {
+    uint64 channel_id = 1;
+    uint64 sender_id  = 2;
+    string message    = 3;
+}
+
+// Server -> Client responses
+
+enum ChatErrorCode {
+    CHAT_ERROR_CODE_OK                  = 0;
+    CHAT_ERROR_CODE_UNAUTHORIZED        = 1;
+    CHAT_ERROR_CODE_CHANNEL_NOT_FOUND   = 2;
+    CHAT_ERROR_CODE_ALREADY_IN_CHANNEL  = 3;
+    CHAT_ERROR_CODE_NOT_IN_CHANNEL      = 4;
+}
+
+message JoinChannelResponse {
+    uint64        channel_id = 1;
+    ChatErrorCode error      = 2;
+}
+
+message LeaveChannelResponse {
+    uint64        channel_id = 1;
+    ChatErrorCode error      = 2;
+}
+
+message SendChatMessageResponse {
+    uint64        channel_id = 1;
+    ChatErrorCode error      = 2;
+}

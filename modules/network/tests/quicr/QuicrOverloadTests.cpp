@@ -2,8 +2,6 @@
  * Testing overloading the listener and how much can it handle.
  */
 
-#include <barrier>
-#include <ios>
 #include <span>
 #include <unordered_map>
 #include <tracy/Tracy.hpp>
@@ -83,7 +81,6 @@ int main() {
                 }
 
                 std::string mesg(connection.second->buffer.begin(), connection.second->buffer.begin() + *read_r);
-                spdlog::error("Received: {}", mesg);
                 std::transform(mesg.begin(), mesg.end(), mesg.begin(), ::toupper);
 
                 connection.second->connection->send_message(std::as_writable_bytes(std::span(mesg)), true);
@@ -102,7 +99,6 @@ int main() {
     std::vector<bool> established_counts(NUM_CONNECTIONS, false);
 
     for(int i = 0; i < NUM_CONNECTIONS; i++) {
-        ZoneScoped;
         endpoints[i] = std::make_unique<QuicrEndpoint>(QuicrEndpoint::create().value());
 
         connections[i] = endpoints[i]->connect(Address{"127.0.0.1", 8100}).value();
@@ -122,56 +118,6 @@ int main() {
             }
         }
     }
-
-    // for(int i = 0; i < NUM_CONNECTIONS; i++) {
-    //     client_threads.push_back(std::thread([&](uint32_t idx) {
-    //         ZoneScoped;
-    //         create_sync_point.arrive_and_wait();
-
-    //         auto client_endpoint_r = QuicrEndpoint::create();
-    //         assert(client_endpoint_r);
-
-    //         auto client_endpoint = std::move(client_endpoint_r.value());
-
-    //         auto connection_r = client_endpoint.connect(Address{"127.0.0.1", 8100});
-    //         assert(connection_r);
-    //         auto connection = std::move(connection_r.value());
-
-    //         while(connection->state() != QuicrConnectionState::Established) {
-    //             if(is_stopped) break;
-    //             client_endpoint.poll();
-    //             std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    //         }
-
-    //         std::string mesg = "Hello from client " + std::to_string(idx) + std::string(1500, 'a');
-
-    //         auto bytes = std::as_writable_bytes(std::span(mesg));
-
-    //         (*connection_r)->push_stream_frame(bytes, true);
-
-    //         std::string uppercase_mesg = mesg;
-    //         std::transform(uppercase_mesg.begin(), uppercase_mesg.end(), uppercase_mesg.begin(), ::toupper);
-
-    //         std::vector<std::byte> buffer(1024 * 16);
-
-    //         while(true) {
-    //             if(is_stopped) break;
-    //             client_endpoint.poll();
-    //             auto read_r = (*connection_r)->read_into(buffer);
-
-    //             if(*read_r == 0) {
-    //                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    //                 continue;
-    //             }
-
-
-    //             std::string received_mesg(buffer.begin(), buffer.begin() + *read_r);
-    //             assert(received_mesg == uppercase_mesg);
-
-    //             break;
-    //         }
-    //     }, i));
-    // }
 
     server_thread.join();
     return 0;

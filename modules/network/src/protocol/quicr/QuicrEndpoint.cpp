@@ -16,6 +16,20 @@ QuicrEndpoint::QuicrEndpoint(int socket_fd)
 
 }
 
+tl::expected<QuicrEndpoint, NetworkError> QuicrEndpoint::create_and_bind(int16_t port) {
+    auto endpoint = QuicrEndpoint::create();
+    if (!endpoint.has_value()) {
+        return tl::make_unexpected(endpoint.error());
+    }
+
+    auto bind_r = endpoint.value().bind(port);
+    if(!bind_r) {
+        return tl::make_unexpected(bind_r.error());
+    }
+
+    return std::move(endpoint.value());
+}
+
 tl::expected<QuicrEndpoint, NetworkError> QuicrEndpoint::create() {
     const int domain = AF_INET;
     int socket_fd = socket(domain, SOCK_DGRAM, IPPROTO_UDP);

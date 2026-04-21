@@ -1,7 +1,6 @@
 #pragma once
 
-#include "packets/Packet.hpp"
-#include <nlohmann/json.hpp>
+#include "MessageRegistry.hpp"
 #include <spdlog/spdlog.h>
 #include <string>
 #include <fstream>

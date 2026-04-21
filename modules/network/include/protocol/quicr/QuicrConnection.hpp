@@ -3,6 +3,7 @@
 #include "Address.hpp"
 #include "NetworkError.hpp"
 #include "bytebuffer/ByteBuffer.hpp"
+#include "io/Read.hpp"
 #include "protocol/quicr/QuicrConnectionIdGenerator.hpp"
 #include "protocol/quicr/QuicrEndpoint.hpp"
 #include "protocol/quicr/QuicrError.hpp"

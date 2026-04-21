@@ -9,6 +9,7 @@
 
 #include "NetworkError.hpp"
 #include "packets/Packet.hpp"
+#include "MessageRegistry.hpp"
 #include "protocol/quicr/QuicrFrameType.hpp"
 #include "tl/expected.hpp"
 

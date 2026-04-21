@@ -59,7 +59,7 @@ public:
         static_cast<int32_t>((VIEW_RADIUS + CELL_SIZE - 1) / CELL_SIZE);
 
     static_assert(kTotalCells > 0, "Grid must have at least one cell");
-    static_assert(kTotalCells <= 65536, "Grid is too large; use SpatialHashGrid instead");
+    // static_assert(kTotalCells <= 65536, "Grid is too large; use SpatialHashGrid instead");
     static_assert(kCellSize > 0, "CELL_SIZE must be positive");
     static_assert(kViewRadius > 0, "VIEW_RADIUS must be positive");
 

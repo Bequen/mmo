@@ -14,7 +14,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE -UTRACY_CALLSTACK)
 target_include_directories(${PROJECT_NAME}
         PUBLIC
         ${PROJECT_SOURCE_DIR}/
-        ${quadtree_SOURCE_DIR}/include
+        # ${quadtree_SOURCE_DIR}/include
 )
 
 target_link_libraries(${PROJECT_NAME}
