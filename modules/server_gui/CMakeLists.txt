@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.26)
 project(server_gui)
 
 
@@ -17,14 +16,14 @@ target_include_directories(
 target_link_libraries(
     ${PROJECT_NAME}
     PUBLIC
-    mmo::network
+    tw::network
     loft::common
     loft::base
     loft_window
     loft::render_graph
     tw::protocol
     towards
-    mmo::gui
+    tw::gui
     imgui::imgui
     imgui::plot
     glm::glm

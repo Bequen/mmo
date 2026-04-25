@@ -1,9 +1,7 @@
 project(tw_serialization_tests)
 
-find_package(Catch2 REQUIRED)
-
 set(LIBS
-    mmo::network
+    tw::network
 )
 
 file(GLOB FILES
@@ -21,14 +19,14 @@ file(GLOB FILES
 # add_executable(${PROJECT_NAME})
 add_executable(SerializationBenchmarks ./SerializationBenchmarks.cpp)
 
-add_definitions(-DTRACY_ON_DEMAND=1)
+target_compile_definitions(SerializationBenchmarks PRIVATE TRACY_ON_DEMAND=1)
 
 target_link_libraries(SerializationBenchmarks
     PRIVATE
     ${LIBS}
     # ${PROJECT_NAME}_sources
     towards
-    mmo::network
+    tw::network
     tw::protocol
     tw::serialization
     Tracy::TracyClient

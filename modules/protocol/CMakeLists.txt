@@ -1,11 +1,11 @@
 project(tw_protocol)
 
-set(GLOB FILES
+file(GLOB FILES
     ./src/messages/*.cpp
     ./src/*.cc
 )
 
-set(GLOB HEADERS
+file(GLOB HEADERS
     ./src/messages/*.hpp
     ./src/*.pb.h
     ./src/messages/*.h
@@ -51,5 +51,5 @@ protobuf_generate(
 
 target_sources(${PROJECT_NAME}
     PUBLIC FILE_SET HEADERS
-    BASE_DIRS ${CMAKE_CURRENT_BINARY_DIR}
+    BASE_DIRS ${CMAKE_CURRENT_LIST_DIR}
     FILES ${HEADERS} ${PROTO_HDRS})

@@ -31,42 +31,10 @@ enum PacketType {
     CHAT_MESSAGE_BROADCAST_REQUEST
 };
 
+namespace tw {
 template<typename Msg>
 class Message;
 
-#define MESSAGE(class_name, message_type_id) class class_name; \
-    template<> \
-    class Message<class_name> { \
-        public: static constexpr PacketType value = message_type_id; \
-    }; \
-\
-class class_name
-
-template<>
-struct fmt::formatter<PacketType> : fmt::formatter<std::string_view> {
-    auto format(PacketType type, fmt::format_context& ctx) const {
-        std::string_view name;
-        switch (type) {
-            case MESSAGE_PACKET:               name = "MESSAGE_PACKET";               break;
-            case LOGIN_REQUEST_MSG:            name = "LOGIN_REQUEST_MSG";            break;
-            case LOGIN_RESPONSE_PACKET:        name = "LOGIN_RESPONSE_PACKET";        break;
-            case WORLD_STATE_PACKET:           name = "WORLD_STATE_PACKET";           break;
-            case PLAYER_UPDATE_MSG:            name = "PLAYER_UPDATE_MSG";            break;
-            case PLAYER_UPDATE_PACKET:         name = "PLAYER_UPDATE_PACKET";         break;
-            case ENTITY_SPAWN_MSG:             name = "ENTITY_SPAWN_MSG";             break;
-            case ENTITY_DESPAWN_MSG:           name = "ENTITY_DESPAWN_MSG";           break;
-            case ENTITY_MOVE_PACKET:           name = "ENTITY_MOVE_PACKET";           break;
-            case PLAYER_JOIN_REQUEST_PACKET:   name = "PLAYER_JOIN_REQUEST_PACKET";   break;
-            case PLAYER_JOIN_RESPONSE_PACKET:  name = "PLAYER_JOIN_RESPONSE_PACKET";  break;
-            case CHAT_SEND_MESSAGE_REQUEST:            name = "CHAT_SEND_MESSAGE";            break;
-            case CHAT_JOIN_CHANNEL_REQUEST:            name = "CHAT_JOIN_CHANNEL";            break;
-            case CHAT_LEAVE_CHANNEL_REQUEST:           name = "CHAT_LEAVE_CHANNEL";           break;
-            case CHAT_MESSAGE_BROADCAST_REQUEST:       name = "CHAT_MESSAGE_BROADCAST";       break;
-            default:                           name = "UNKNOWN";                      break;
-        }
-        return fmt::formatter<std::string_view>::format(name, ctx);
-    }
-};
 
 template<>
 class Message<mmo::LoginRequest> {
@@ -145,4 +113,32 @@ template<>
 class Message<mmo::chat::ChatMessageBroadcastRequest> {
 public:
     static constexpr PacketType value = CHAT_MESSAGE_BROADCAST_REQUEST;
+};
+}
+
+
+template<>
+struct fmt::formatter<PacketType> : fmt::formatter<std::string_view> {
+    auto format(PacketType type, fmt::format_context& ctx) const {
+        std::string_view name;
+        switch (type) {
+            case MESSAGE_PACKET:               name = "MESSAGE_PACKET";               break;
+            case LOGIN_REQUEST_MSG:            name = "LOGIN_REQUEST_MSG";            break;
+            case LOGIN_RESPONSE_PACKET:        name = "LOGIN_RESPONSE_PACKET";        break;
+            case WORLD_STATE_PACKET:           name = "WORLD_STATE_PACKET";           break;
+            case PLAYER_UPDATE_MSG:            name = "PLAYER_UPDATE_MSG";            break;
+            case PLAYER_UPDATE_PACKET:         name = "PLAYER_UPDATE_PACKET";         break;
+            case ENTITY_SPAWN_MSG:             name = "ENTITY_SPAWN_MSG";             break;
+            case ENTITY_DESPAWN_MSG:           name = "ENTITY_DESPAWN_MSG";           break;
+            case ENTITY_MOVE_PACKET:           name = "ENTITY_MOVE_PACKET";           break;
+            case PLAYER_JOIN_REQUEST_PACKET:   name = "PLAYER_JOIN_REQUEST_PACKET";   break;
+            case PLAYER_JOIN_RESPONSE_PACKET:  name = "PLAYER_JOIN_RESPONSE_PACKET";  break;
+            case CHAT_SEND_MESSAGE_REQUEST:            name = "CHAT_SEND_MESSAGE";            break;
+            case CHAT_JOIN_CHANNEL_REQUEST:            name = "CHAT_JOIN_CHANNEL";            break;
+            case CHAT_LEAVE_CHANNEL_REQUEST:           name = "CHAT_LEAVE_CHANNEL";           break;
+            case CHAT_MESSAGE_BROADCAST_REQUEST:       name = "CHAT_MESSAGE_BROADCAST";       break;
+            default:                           name = "UNKNOWN";                      break;
+        }
+        return fmt::formatter<std::string_view>::format(name, ctx);
+    }
 };

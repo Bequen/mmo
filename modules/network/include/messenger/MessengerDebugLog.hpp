@@ -16,12 +16,12 @@ public:
 
     template<typename T>
     void log_send(const T& message) {
-        spdlog::info("Sending [{}]: {}", (int)Message<T>::value, message.DebugString());
+        spdlog::info("Sending [{}]: {}", (int)tw::Message<T>::value, message.DebugString());
     }
 
     template<typename T>
     void log_recv(const T& message) {
-        spdlog::info("Received [{}]: {}", (int)Message<T>::value, message.DebugString());
+        spdlog::info("Received [{}]: {}", (int)tw::Message<T>::value, message.DebugString());
     }
 
 private:

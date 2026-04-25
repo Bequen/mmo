@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.26)
 project(tw_chat_lib)
 
 file(GLOB_RECURSE HEADERS
@@ -16,5 +15,5 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         spdlog::spdlog
-        mmo::network
+        tw::network
 )

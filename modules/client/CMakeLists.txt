@@ -1,5 +1,4 @@
-cmake_minimum_required(VERSION 3.26)
-project(mmo_client)
+project(tw_client)
 
 add_subdirectory(shaders)
 
@@ -20,14 +19,14 @@ add_dependencies(tw_shaders imgui::plot imgui::plot)
 target_link_libraries(${PROJECT_NAME}
         PUBLIC
         towards
-        mmo::network
+        tw::network
         loft::common
 		loft::base
 		loft_window
 		loft::render_graph
 		tw::protocol
 		tw::serialization
-		mmo::gui
+		tw::gui
         imgui::imgui
         imgui::plot
         glm::glm

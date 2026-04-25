@@ -36,8 +36,6 @@ private:
 
     std::unordered_map<uint32_t, entt::entity> m_players;
 
-    void player_move_packet_handler(PlayerInputMessage&& mesg);
-
     void send_player_positions();
 
 public:

@@ -1,5 +1,4 @@
-cmake_minimum_required(VERSION 3.26)
-project(mmo_network)
+project(tw_network)
 
 
 add_subdirectory(tests)
@@ -22,7 +21,7 @@ file(GLOB HEADERS
 )
 
 add_library(${PROJECT_NAME} OBJECT ${FILES})
-add_library(mmo::network ALIAS mmo_network)
+add_library(tw::network ALIAS tw_network)
 target_sources(${PROJECT_NAME}
     PUBLIC FILE_SET HEADERS
     BASE_DIRS include

@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.26)
 project(tw_chat_client)
 
 file(GLOB FILES
@@ -25,7 +24,7 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
-        mmo::network
+        tw::network
         tl::expected
         tw::messaging
         tw::protocol

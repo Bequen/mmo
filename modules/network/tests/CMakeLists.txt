@@ -1,9 +1,7 @@
 project(tw_network_tests)
 
-find_package(Catch2 REQUIRED)
-
 set(LIBS
-    mmo::network
+    tw::network
 )
 
 file(GLOB FILES
@@ -22,8 +20,6 @@ target_link_libraries(${PROJECT_NAME}_sources
 add_executable(${PROJECT_NAME})
 add_executable(QuicrOverloadTest ./quicr/QuicrOverloadTests.cpp)
 add_executable(QuicrBenchmarks ./quicr/QuicrBenchmarks.cpp)
-
-add_definitions(-DTRACY_ON_DEMAND=1)
 
 target_link_libraries(QuicrBenchmarks
     PRIVATE

@@ -3,7 +3,6 @@
 
 #include "Chat.pb.h"
 #include "MessageRegistry.hpp"
-#include "PlayerClient.hpp"
 #include "network/OutboundMessage.hpp"
 #include "network/PlayerSessionRegistry.hpp"
 #include "runtime/LockStep.hpp"
@@ -19,13 +18,13 @@
 namespace tw::net {
 
 WorldServer::WorldServer(int port, int quicr_port) :
-    m_monitor(std::make_unique<TimescaleDbBandwidthMonitor>((PostgreSqlConnectionInfo){
-        .host = "localhost",
-        .port = 5432,
-        .dbname = "towards",
-        .username = "postgres",
-        .password = "postgres"
-    })),
+    // m_monitor(std::make_unique<TimescaleDbBandwidthMonitor>((PostgreSqlConnectionInfo){
+    //     .host = "localhost",
+    //     .port = 5432,
+    //     .dbname = "towards",
+    //     .username = "postgres",
+    //     .password = "postgres"
+    // })),
     // m_client_manager{port, quicr_port, m_monitor.get()},
     m_player_session_registry(std::make_unique<PlayerSessionRegistry>()),
     m_message_dispatcher(std::make_unique<MessageDispatcher>(m_network_receiver.get())),
@@ -40,7 +39,7 @@ WorldServer::WorldServer(int port, int quicr_port) :
     ))
 { }
 
-void WorldServer::player_update_handler(PlayerClientId clientId, mmo::PlayerMoveMessage&& message) {
+void WorldServer::player_update_handler(uint64_t clientId, mmo::PlayerMoveMessage&& message) {
     ZoneScoped;
     entt::entity entity = get_client_entity(clientId);
 
@@ -99,12 +98,12 @@ void WorldServer::run() {
     uint32_t frame_idx = 1;
 
     m_message_dispatcher->set_handler<mmo::PlayerMoveMessage>(
-        [&](PlayerClientId clientId, mmo::PlayerMoveMessage mesg) {
+        [&](uint64_t clientId, mmo::PlayerMoveMessage mesg) {
             player_update_handler(clientId, std::move(mesg));
         });
 
     m_message_dispatcher->set_handler<mmo::chat::SendChatMessageRequest>(
-        [&](PlayerClientId clientId, mmo::chat::SendChatMessageRequest mesg) {
+        [&](uint64_t clientId, mmo::chat::SendChatMessageRequest mesg) {
         });
 
     while(!quit.load()) {

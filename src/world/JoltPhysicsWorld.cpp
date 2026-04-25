@@ -36,7 +36,6 @@ uint32_t before() {
 
 
 JoltPhysicsWorld::JoltPhysicsWorld(World* world) :
-    m_thread_pool(before()),
     temp_allocator(),
     job_system(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, std::thread::hardware_concurrency() - 1),
     m_world(world),
@@ -50,9 +49,9 @@ JoltPhysicsWorld::JoltPhysicsWorld(World* world) :
     contact_listener(),
     m_character_vs_character_collision()
 {
-    for(int i = 0; i < m_thread_pool.size(); i++) {
-        temp_allocator.emplace_back(std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024));
-    }
+    // for(int i = 0; i < m_thread_pool.size(); i++) {
+    //     temp_allocator.emplace_back(std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024));
+    // }
     // for(auto& allocator : temp_allocator) {
     //     // allocator = std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024);
     // }

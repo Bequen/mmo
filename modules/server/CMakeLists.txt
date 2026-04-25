@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.26)
 project(tw_server)
 
 # set(CMAKE_CXX_CLANG_TIDY "/usr/bin/clang-tidy;-checks=*")
@@ -22,11 +21,9 @@ target_include_directories(tw_server_lib
 target_link_libraries(tw_server_lib
         PUBLIC
         towards
-        mmo::network
+        tw::network
         tw::protocol
         tw::serialization
-
-        PUBLIC
         glm::glm
         EnTT::EnTT
         Jolt

@@ -1,6 +1,4 @@
-cmake_minimum_required(VERSION 3.26)
-
-project(mmo_gui)
+project(tw_gui)
 
 file(GLOB CXX_FILES
     src/*.cpp
@@ -11,7 +9,7 @@ file(GLOB HEADER_FILES
 )
 
 add_library(${PROJECT_NAME} OBJECT ${CXX_FILES})
-add_library(mmo::gui ALIAS ${PROJECT_NAME})
+add_library(tw::gui ALIAS ${PROJECT_NAME})
 
 target_sources(
     ${PROJECT_NAME}

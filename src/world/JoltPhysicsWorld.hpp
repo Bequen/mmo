@@ -4,7 +4,6 @@
 #include <iostream>
 #include <print>
 #include "metrics/HistoryBuffer.hpp"
-#include "ThreadPool.hpp"
 
 #include <glm/glm.hpp>
 #include <Jolt/Jolt.h>
@@ -173,7 +172,6 @@ class World;
 
 class JoltPhysicsWorld {
 private:
-    ThreadPool m_thread_pool;
     std::vector<std::unique_ptr<JPH::TempAllocatorImpl>> temp_allocator;
     JPH::JobSystemThreadPool job_system;
 

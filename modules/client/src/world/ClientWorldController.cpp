@@ -206,16 +206,6 @@ ClientWorldController::ClientWorldController(
 
             m_entity_interpolator.register_entity(entity);
         });
-
-    PlayerJoinRequestMessage join_request = {
-        .name = "Test Player"
-    };
-
-    mmo::LoginRequest login_request = { };
-    login_request.set_username("martin");
-    login_request.set_password("martin");
-
-    // auto r = m_messenger->send(login_request);
 }
 
 ClientWorldController::~ClientWorldController() {

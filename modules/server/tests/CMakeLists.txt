@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.26)
 project(tw_server_tests)
 
 # set(CMAKE_CXX_CLANG_TIDY "/usr/bin/clang-tidy;-checks=*")

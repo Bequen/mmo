@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.26)
 project(tw_chat_service)
 
 file(GLOB FILES
