@@ -2,6 +2,7 @@
 
 #include "WorldState.pb.h"
 #include "Chat.pb.h"
+#include "Cluster.pb.h"
 #include "Login.pb.h"
 #include "PlayerMove.pb.h"
 #include "Entity.pb.h"
@@ -28,7 +29,10 @@ enum PacketType {
     CHAT_JOIN_CHANNEL_RESPONSE,
     CHAT_LEAVE_CHANNEL_REQUEST,
     CHAT_LEAVE_CHANNEL_RESPONSE,
-    CHAT_MESSAGE_BROADCAST_REQUEST
+    CHAT_MESSAGE_BROADCAST_REQUEST,
+
+    CLUSTER_ZONE_HELLO,
+    CLUSTER_ZONE_BYE,
 };
 
 namespace tw {
@@ -114,6 +118,18 @@ class Message<mmo::chat::ChatMessageBroadcastRequest> {
 public:
     static constexpr PacketType value = CHAT_MESSAGE_BROADCAST_REQUEST;
 };
+
+template<>
+class Message<mmo::cluster::ZoneHello> {
+public:
+    static constexpr PacketType value = CLUSTER_ZONE_HELLO;
+};
+
+template<>
+class Message<mmo::cluster::ZoneBye> {
+public:
+    static constexpr PacketType value = CLUSTER_ZONE_BYE;
+};
 }
 
 
@@ -137,6 +153,8 @@ struct fmt::formatter<PacketType> : fmt::formatter<std::string_view> {
             case CHAT_JOIN_CHANNEL_REQUEST:            name = "CHAT_JOIN_CHANNEL";            break;
             case CHAT_LEAVE_CHANNEL_REQUEST:           name = "CHAT_LEAVE_CHANNEL";           break;
             case CHAT_MESSAGE_BROADCAST_REQUEST:       name = "CHAT_MESSAGE_BROADCAST";       break;
+            case CLUSTER_ZONE_HELLO:                   name = "CLUSTER_ZONE_HELLO";           break;
+            case CLUSTER_ZONE_BYE:                     name = "CLUSTER_ZONE_BYE";             break;
             default:                           name = "UNKNOWN";                      break;
         }
         return fmt::formatter<std::string_view>::format(name, ctx);

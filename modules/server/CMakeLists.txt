@@ -3,7 +3,10 @@ project(tw_server)
 # set(CMAKE_CXX_CLANG_TIDY "/usr/bin/clang-tidy;-checks=*")
 
 file(GLOB FILES
-    src/WorldServer.cpp
+    src/ZoneServer.cpp
+    src/ZoneCoordinator.cpp
+    src/ZoneClusterLink.cpp
+    src/ZoneManager.cpp
     src/interest_management/*.cpp
     src/replication/*.cpp
     src/systems/*.cpp
@@ -30,7 +33,6 @@ target_link_libraries(tw_server_lib
         protobuf::libprotobuf
         ${Boost_LIBRARIES}
         Tracy::TracyClient
-        TracyClient
         pqxx
         pq
 )

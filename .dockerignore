@@ -1,0 +1,6 @@
+build/
+.git/
+.zed/
+.clangd/
+compile_commands.json
+*.md

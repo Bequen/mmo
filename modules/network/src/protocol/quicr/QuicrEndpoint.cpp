@@ -174,7 +174,7 @@ void QuicrEndpoint::poll() {
             auto datagram = connection.second->pop_datagram();
             auto send_r = send_to(datagram, connection.second->address());
             if(!send_r) {
-                spdlog::error("Failed to send datagram: {}", send_r.error().message());
+                spdlog::error("Failed to send to {} datagram: {}", connection.second->address().to_string(), send_r.error().message());
                 break;
             }
         }

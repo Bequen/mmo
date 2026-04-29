@@ -1,9 +1,10 @@
 #pragma once
 
-#include "TcpListener.hpp"
 #include "MessageQueue.hpp"
 #include "InboundMessage.hpp"
 #include "MessageRegistry.hpp"
+#include "monitoring/MetricsReporter.hpp"
+#include "monitoring/TimescaleDbMetricsReporter.hpp"
 #include "network/PlayerSessionRegistry.hpp"
 #include "protocol/quicr/QuicrConnectionListener.hpp"
 #include "protocol/quicr/QuicrEndpoint.hpp"
@@ -15,7 +16,6 @@ namespace tw::net {
 class NetworkReceiver {
     PlayerSessionRegistry *m_session_registry;
 
-    TcpListener m_tcp_listener;
     std::unique_ptr<quicr::QuicrEndpoint> m_quicr_endpoint;
     std::unique_ptr<quicr::QuicrConnectionListener> m_quicr_listener;
 
@@ -23,7 +23,7 @@ class NetworkReceiver {
 
     std::deque<SessionId> m_new_sessions;
 
-    bool listen_tcp();
+    NetworkMetricsReporter* m_metrics_reporter;
 
     bool listen_quicr();
 
@@ -34,8 +34,8 @@ class NetworkReceiver {
 public:
     NetworkReceiver(
         PlayerSessionRegistry* session_registry,
-        int32_t tcp_port,
-        int32_t udp_port
+        int32_t udp_port,
+        NetworkMetricsReporter* metrics_reporter
     );
 
     MessageQueue<InboundMessage*>* inbound_queue() {
@@ -75,6 +75,7 @@ public:
         memcpy(bytes.data() + sizeof(uint32_t), payload_bytes.data(), payload_bytes.size());
 
         auto session = m_session_registry->session(session_id);
+        m_metrics_reporter->add_outbound(bytes.size());
 
         session->quicr_connection->send_message(bytes, false);
         return bytes.size();
@@ -103,6 +104,7 @@ public:
         // We copy the span here.  If the QUICr layer is ever refactored to
         // accept a span we can remove this copy entirely.
         std::vector<std::byte> bytes(payload.begin(), payload.end());
+        m_metrics_reporter->add_outbound(bytes.size());
         session->quicr_connection->send_message(bytes, false);
         return bytes.size();
     }

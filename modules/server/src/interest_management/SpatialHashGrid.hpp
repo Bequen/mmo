@@ -82,6 +82,21 @@ public:
         m_cells[make_key(cx, cz)].push_back(entity);
     }
 
+    // Queries all entities in cells that overlap the given XZ AABB [min, max].
+    void query_area(glm::vec2 min, glm::vec2 max, std::vector<entt::entity>& out_entities) {
+        auto [cx_min, cz_min] = world_to_cell(min.x, min.y);
+        auto [cx_max, cz_max] = world_to_cell(max.x, max.y);
+
+        for (int32_t cz = cz_min; cz <= cz_max; ++cz) {
+            for (int32_t cx = cx_min; cx <= cx_max; ++cx) {
+                auto it = m_cells.find(make_key(cx, cz));
+                if (it == m_cells.end()) continue;
+                const auto& cell = it->second;
+                out_entities.insert(out_entities.end(), cell.begin(), cell.end());
+            }
+        }
+    }
+
     // Queries the neighborhood around the given position.
     // Appends all entities in the neighborhood cells into out_entities.
     void query_neighbors(glm::vec3 pos, std::vector<entt::entity>& out_entities) {

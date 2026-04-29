@@ -96,7 +96,7 @@ void JoltPhysicsWorld::update(uint32_t frame_idx, double delta_time) {
     auto view = m_world->registry().view<CharacterController, CharacterBody>();
 
     view.each([&](entt::entity entity, const CharacterController& controller, CharacterBody& rb) {
-        auto& allocator = *temp_allocator;
+        auto allocator = temp_allocator.get();
 
         ZoneScoped;
         ZoneNameF("CharacterController update %d", (uint32_t)0);
@@ -176,7 +176,7 @@ void JoltPhysicsWorld::update(uint32_t frame_idx, double delta_time) {
                 physics_system.GetDefaultLayerFilter(Layers::MOVING),
                 {},
                 {},
-                allocator);
+                *allocator);
         }
     });
 

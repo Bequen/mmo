@@ -1,41 +1,82 @@
-#include <cstdint>
-#include <exception>
+#include "ZoneServer.hpp"
+#include "ZoneServerConfiguration.hpp"
+
+#include <getopt.h>
 #include <spdlog/spdlog.h>
+#include <cstdlib>
 #include <print>
 
-#include "Address.hpp"
-#include "TcpListener.hpp"
-#include "entt/entt.hpp"
-#include "WorldServer.hpp"
+static constexpr int kDefaultQuicrPort   = 8101;
+static constexpr int kDefaultClusterPort = 8102;
 
-#define PORT 8080
-#define MAX_LINE 1024
+static void print_usage(const char* argv0) {
+    std::println("Usage: {} [--quicr-port <port>] [--cluster-port <port>]", argv0);
+    std::println("  --quicr-port    UDP port for player connections  (default: {})", kDefaultQuicrPort);
+    std::println("  --cluster-port  UDP port for zone-server peering (default: {})", kDefaultClusterPort);
+    std::println("");
+    std::println("TimescaleDB (all optional, enabled when TIMESCALEDB_HOST is set):");
+    std::println("  TIMESCALEDB_HOST      host name");
+    std::println("  TIMESCALEDB_PORT      port         (default: 5432)");
+    std::println("  TIMESCALEDB_DB        database     (default: mmo)");
+    std::println("  TIMESCALEDB_USER      username     (default: mmo)");
+    std::println("  TIMESCALEDB_PASSWORD  password");
+    std::println("  TIMESCALEDB_TABLE     metrics table (default: zone_metrics)");
+}
 
-// find first free socket -> sometimes socket remaing stuck in WAIT state, even after closing
-std::optional<tw::net::TcpListener> bind_to_free_port(int from, int to) {
-    for(int32_t i = from; i < to; i++) {
-        auto listener = tw::net::TcpListener::listen(tw::net::Address({}, i), i);
-        if(listener.has_value()) {
-            return std::move(listener.value());
+static auto env(const char* name, const char* fallback = "") -> std::string {
+    const char* v = std::getenv(name);
+    return v ? v : fallback;
+}
+
+static std::optional<TimescaleDbConfiguration> timescaledb_from_env() {
+    const std::string host = env("TIMESCALEDB_HOST");
+    if (host.empty()) return std::nullopt;
+
+    const std::string port_str = env("TIMESCALEDB_PORT", "5432");
+    return TimescaleDbConfiguration{
+        .connection = {
+            .host     = host,
+            .port     = std::atoi(port_str.c_str()),
+            .dbname   = env("TIMESCALEDB_DB",       "mmo"),
+            .username = env("TIMESCALEDB_USER",     "mmo"),
+            .password = env("TIMESCALEDB_PASSWORD"),
+        },
+        .metrics_table = env("TIMESCALEDB_TABLE", "zone_metrics"),
+    };
+}
+
+int main(int argc, char* argv[]) {
+    ZoneServerConfiguration config;
+
+    static const option long_opts[] = {
+        { "quicr-port",   required_argument, nullptr, 'q' },
+        { "cluster-port", required_argument, nullptr, 'c' },
+        { "help",         no_argument,       nullptr, 'h' },
+        { nullptr,        0,                 nullptr,  0  },
+    };
+
+    int opt;
+    while ((opt = getopt_long(argc, argv, "q:c:h", long_opts, nullptr)) != -1) {
+        switch (opt) {
+            case 'q': config.quicr_port   = std::atoi(optarg); break;
+            case 'c': config.cluster_port = std::atoi(optarg); break;
+            case 'h': print_usage(argv[0]); return 0;
+            default:  print_usage(argv[0]); return 1;
         }
     }
 
-    return {};
-}
+    config.timescaledb = timescaledb_from_env();
 
-int main() {
-    // auto listener = bind_to_free_port(8100, 9000);
-    // if(!listener.has_value()) {
-    //     spdlog::error("No free port found for server");
-    //     return 1;
-    // }
+    spdlog::info("quicr-port={} cluster-port={} timescaledb={}",
+        config.quicr_port, config.cluster_port,
+        config.timescaledb ? config.timescaledb->connection.host : "disabled");
 
     try {
-        tw::net::WorldServer server(8100, 8101);
+        tw::net::ZoneServer server(std::move(config));
         server.run();
-    } catch(std::exception e) {
+    } catch (const std::exception& e) {
         std::println("Exception: {}", e.what());
-        throw e;
+        return 1;
     }
 
     return 0;

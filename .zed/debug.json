@@ -33,10 +33,10 @@
   },
   {
     "adapter": "CodeLLDB",
-    "label": "QuicrOverloadTest",
+    "label": "ZoneManagerTests",
     "request": "launch",
     // The program to debug. This field supports path resolution with ~ or . symbols.
-    "program": "./Debug/modules/network/tests/QuicrOverloadTest",
+    "program": "./target/Debug/modules/server/tests/tw_zone_manager_tests",
     // cwd: defaults to the current working directory of your project ($ZED_WORKTREE_ROOT)
     "cwd": "$ZED_WORKTREE_ROOT",
     "console": "integratedTerminal"
