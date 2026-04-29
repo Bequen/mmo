@@ -172,7 +172,11 @@ class World;
 
 class JoltPhysicsWorld {
 private:
-    std::vector<std::unique_ptr<JPH::TempAllocatorImpl>> temp_allocator;
+    static bool initialization();
+
+    bool m_is_initialized;
+
+    std::unique_ptr<JPH::TempAllocatorImpl> temp_allocator;
     JPH::JobSystemThreadPool job_system;
 
     BPLayerInterfaceImpl broad_phase_layer_interface;

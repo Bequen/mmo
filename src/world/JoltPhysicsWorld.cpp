@@ -24,19 +24,20 @@
 
 namespace tw {
 
-uint32_t before() {
+bool JoltPhysicsWorld::initialization() {
     JPH::RegisterDefaultAllocator();
 
     JPH::Factory::sInstance = new JPH::Factory();
 
     JPH::RegisterTypes();
 
-    return std::thread::hardware_concurrency();
+    return true;
 }
 
 
 JoltPhysicsWorld::JoltPhysicsWorld(World* world) :
-    temp_allocator(),
+    m_is_initialized(initialization()),
+    temp_allocator(std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024)),
     job_system(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, std::thread::hardware_concurrency() - 1),
     m_world(world),
     m_history(0, std::move(std::make_unique<JPH::StateRecorderImpl>()), 10),
@@ -95,7 +96,7 @@ void JoltPhysicsWorld::update(uint32_t frame_idx, double delta_time) {
     auto view = m_world->registry().view<CharacterController, CharacterBody>();
 
     view.each([&](entt::entity entity, const CharacterController& controller, CharacterBody& rb) {
-        auto& allocator = *temp_allocator[0];
+        auto& allocator = *temp_allocator;
 
         ZoneScoped;
         ZoneNameF("CharacterController update %d", (uint32_t)0);
@@ -179,7 +180,7 @@ void JoltPhysicsWorld::update(uint32_t frame_idx, double delta_time) {
         }
     });
 
-    physics_system.Update(delta_time, 1, temp_allocator[0].get(), &job_system);
+    physics_system.Update(delta_time, 1, temp_allocator.get(), &job_system);
 
     auto stateRecorder = std::make_shared<JPH::StateRecorderImpl>();
     physics_system.SaveState(*stateRecorder.get());
