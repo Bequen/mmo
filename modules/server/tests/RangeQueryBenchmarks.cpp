@@ -111,7 +111,7 @@ void hash_grid(entt::registry& registry, const std::vector<glm::vec3>& query_poi
 }
 
 void fixed_grid(entt::registry& registry, const std::vector<glm::vec3>& query_points) {
-    tw::net::im::FixedGrid<-SIZE, SIZE, -SIZE, SIZE, VIEW, VIEW> fixed_grid;
+    tw::net::im::FixedGrid<VIEW, VIEW> fixed_grid(-10000, 10000, -10000, 10000);
     ZoneScopedN("FixedGrid");
 
     auto start = Clock::now();

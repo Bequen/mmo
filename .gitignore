@@ -6,7 +6,6 @@ Testing/
 imgui.ini
 
 # editors
-.zed/
 .idea/
 cmake-build-debug/
 .opencode/

@@ -4,6 +4,7 @@
 #include "MessageQueue.hpp"
 #include "NetworkError.hpp"
 #include "MessageDeserializer.hpp"
+#include "monitoring/TimescaleDbMetricsReporter.hpp"
 #include "network/NetworkReceiver.hpp"
 #include "packets/Packet.hpp"
 
@@ -19,7 +20,7 @@ typedef std::function<tl::expected<void, NetworkError>(uint32_t, std::span<std::
 class MessageDispatcher {
     NetworkReceiver* m_network;
 
-    std::unordered_map<uint32_t, MessageHandler> m_handlers;
+    std::unordered_map<uint32_t, MessageHandler>        m_handlers;
 
 public:
     MessageDispatcher(NetworkReceiver* network) :
@@ -37,8 +38,6 @@ public:
                 if(!r) {
                     return {};
                 }
-
-                // m_monitor->add_inbound(size);
 
                 handler(session_id, *r);
                 return {};

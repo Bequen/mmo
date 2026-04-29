@@ -7,6 +7,7 @@
 #include <tl/expected.hpp>
 #include <unordered_map>
 #include <utility>
+#include <unistd.h>
 
 namespace tw::net::quicr {
 

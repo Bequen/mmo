@@ -2,7 +2,7 @@
 
 #include "network/NetworkReceiver.hpp"
 #include "network/PlayerSessionRegistry.hpp"
-#include "systems/ClientState.hpp"
+#include "systems/Interest.hpp"
 #include "systems/InterestSystem.hpp"
 #include "world/Transform.hpp"
 
@@ -28,10 +28,8 @@ namespace tw::net {
  */
 template<im::SpatialBackend Backend>
 class StateReplicator {
-    const World*                          m_world;
     PlayerSessionRegistry*                m_client_registry;
     NetworkReceiver*                      m_network;
-    const im::InterestSystem<Backend>*    m_interest_manager;
 
     // Per-client backing buffers reused every frame.
     std::vector<tw::serial::BinaryBuffer> m_frames;
@@ -41,21 +39,17 @@ class StateReplicator {
 
 public:
     StateReplicator(
-        const World*                        world,
-        PlayerSessionRegistry*              client_registry,
-        NetworkReceiver*                    network,
-        const im::InterestSystem<Backend>*  interest_manager
+        PlayerSessionRegistry* client_registry,
+        NetworkReceiver*       network
     ) :
-        m_world(world),
         m_client_registry(client_registry),
-        m_network(network),
-        m_interest_manager(interest_manager)
+        m_network(network)
     {}
 
     /**
-     * Replicates the current world state to all connected clients.
+     * Replicates the current world state for one zone to its connected clients.
      */
-    void replicate() {
+    void replicate(const entt::registry& registry, const im::InterestSystem<Backend>* interest_manager) {
         ZoneScopedN("Replicator");
 
         const auto& sessions = m_client_registry->sessions();
@@ -78,7 +72,7 @@ public:
         for (std::size_t i = 0; i < session_count; ++i)
             writers.emplace_back(m_frames[i]);
 
-        std::vector<const im::ClientState*> client_states(session_count);
+        std::vector<const im::Interest*> client_states(session_count);
 
         // ── 1. Write headers / spawns / despawns ──────────────────────────
         {
@@ -86,8 +80,8 @@ public:
 
             for (std::size_t i = 0; i < session_count; ++i) {
                 const auto* session = sessions[i];
-                const im::ClientState* state =
-                    m_interest_manager->get_player_interest(session->session_id);
+                const im::Interest* state =
+                    interest_manager->get_interest(session->session_id);
 
                 client_states[i] = state;
                 if (!state) continue;
@@ -110,7 +104,7 @@ public:
         {
             ZoneScopedN("Putting transforms into messages");
 
-            auto view = m_world->registry().view<Transform>();
+            auto view = registry.view<Transform>();
             view.each([&](entt::entity e, const Transform& t) {
                 for (std::size_t i = 0; i < session_count; ++i) {
                     if (client_states[i] && client_states[i]->is_interested_in_entity(e))
@@ -124,6 +118,7 @@ public:
             ZoneScopedN("Sending messages");
 
             for (std::size_t i = 0; i < session_count; ++i) {
+                spdlog::info("Sending");
                 if (!client_states[i]) continue;
                 writers[i].end();
                 m_network->send_raw(sessions[i]->session_id, writers[i].view());

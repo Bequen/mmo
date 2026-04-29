@@ -1,15 +1,13 @@
 #pragma once
 
 #include "PlayerSession.hpp"
+#include "SessionId.hpp"
 #include "protocol/quicr/QuicrConnection.hpp"
-#include <cstdint>
 #include <memory>
 #include <unordered_map>
 #include <vector>
 
 namespace tw::net {
-
-typedef uint32_t SessionId;
 
 class PlayerSessionRegistry {
     std::vector<PlayerSession*> m_session_vec;

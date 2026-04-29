@@ -1,0 +1,30 @@
+edition = "2023";
+
+package mmo.cluster;
+
+// XZ-plane area owned by a zone (vec2.y maps to world Z).
+message ZoneBounds {
+    float min_x = 1;
+    float min_z = 2;
+    float max_x = 3;
+    float max_z = 4;
+}
+
+// Opaque zone identity assigned by ZoneCoordinator.
+// Carries bounds so receivers can build their routing table without a separate lookup.
+message ZoneId {
+    uint32     id     = 1;
+    ZoneBounds bounds = 2;
+}
+
+// Sent by a zone server to every peer it discovers from the coordinator.
+// Establishes the sender's identity on the cluster link.
+message ZoneHello {
+    ZoneId zone = 1;
+}
+
+// Sent by a zone server just before it shuts down.
+// Receivers must remove the named zone from their peer tables.
+message ZoneBye {
+    ZoneId zone = 1;
+}
